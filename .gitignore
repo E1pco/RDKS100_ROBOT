@@ -1,0 +1,20 @@
+# Build artifacts
+build/
+devel/
+install/
+log/
+
+# Data
+FAST-LIVO2_data/
+
+# IDE
+.vscode/
+
+# Compiled files
+*.o
+*.so
+*.pyc
+__pycache__/
+
+# ROS generated
+*.bag
