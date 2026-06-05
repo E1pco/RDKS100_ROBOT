@@ -66,7 +66,7 @@ class AiMsgFeedCache {
       std::string top_ts = std::to_string(recved_aimsg_ts_.top().sec) + "." +
                            std::to_string(recved_aimsg_ts_.top().nanosec);
       RCLCPP_WARN(rclcpp::get_logger("sam_msg_manage"),
-                  "Ai msg cache len: %d exceeds limit: %d, erase ai ts: %s",
+                  "Ai msg cache len: %zu exceeds limit: %zu, erase ai ts: %s",
                   recved_aimsg_cache_.size(),
                   cache_limt_len_,
                   top_ts.data());
@@ -78,7 +78,7 @@ class AiMsgFeedCache {
       std::string top_ts = std::to_string(recved_aimsg_ts_.top().sec) + "." +
                            std::to_string(recved_aimsg_ts_.top().nanosec);
       RCLCPP_WARN(rclcpp::get_logger("sam_msg_manage"),
-                  "Ts cache len: %d exceeds limit: %d, erase ts: %s",
+                  "Ts cache len: %zu exceeds limit: %zu, erase ts: %s",
                   recved_aimsg_ts_.size(),
                   cache_limt_len_,
                   top_ts.data());
@@ -89,7 +89,7 @@ class AiMsgFeedCache {
     recved_aimsg_cache_[ts] = std::move(ai_msg);
     recved_aimsg_ts_.push(msg->header.stamp);
     RCLCPP_DEBUG(rclcpp::get_logger("sam_msg_manage"),
-                 "top ts: %llu %llu, cache size: %d, ts size: %d",
+                 "top ts: %d %u, cache size: %zu, ts size: %zu",
                  recved_aimsg_ts_.top().sec,
                  recved_aimsg_ts_.top().nanosec,
                  recved_aimsg_cache_.size(),
@@ -116,8 +116,8 @@ class AiMsgFeedCache {
       recved_aimsg_cache_.erase(ts);
 
       RCLCPP_DEBUG(rclcpp::get_logger("sam_msg_manage"),
-                   "find ts %s success, recved_aimsg_ts_ top ts: %llu %llu, "
-                   "cache size: %d, ts size: %d",
+                   "find ts %s success, recved_aimsg_ts_ top ts: %d %u, "
+                   "cache size: %zu, ts size: %zu",
                    ts.c_str(),
                    recved_aimsg_ts_.top().sec,
                    recved_aimsg_ts_.top().nanosec,
@@ -138,7 +138,7 @@ class AiMsgFeedCache {
           recved_aimsg_ts_.pop();
 
           RCLCPP_DEBUG(rclcpp::get_logger("sam_msg_manage"),
-                       "Erase top ts: %s, cache len: %d ts len: %d",
+                       "Erase top ts: %s, cache len: %zu ts len: %zu",
                        top_ts.data(),
                        recved_aimsg_cache_.size(),
                        recved_aimsg_ts_.size());
