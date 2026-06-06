@@ -21,6 +21,7 @@ from typing import Optional
 
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.parameter import Parameter
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 
@@ -47,7 +48,11 @@ class AckermannSerialBridgeNode(Node):
     """ROS2 ↔  Ackermann chassis serial bridge."""
 
     def __init__(self) -> None:
-        super().__init__("ackermann_serial_bridge")
+        super().__init__(
+            "ackermann_serial_bridge",
+            # Allow parallel timer callbacks to avoid starvation
+            callback_group=rclpy.callback_groups.ReentrantCallbackGroup(),
+        )
 
         # ------------------------------------------------------------------
         # Declare & read parameters
@@ -459,8 +464,10 @@ class AckermannSerialBridgeNode(Node):
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = AckermannSerialBridgeNode()
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     finally:

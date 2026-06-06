@@ -9,8 +9,14 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
-        ("share/" + package_name + "/launch", ["launch/serial_bridge.launch.py"]),
-        ("share/" + package_name + "/config", ["config/ackermann_serial_bridge.yaml"]),
+        ("share/" + package_name + "/launch", [
+            "launch/serial_bridge.launch.py",
+            "launch/cmd_vel_republisher.launch.py",
+        ]),
+        ("share/" + package_name + "/config", [
+            "config/ackermann_serial_bridge.yaml",
+            "config/cmd_vel_republisher.yaml",
+        ]),
     ],
     install_requires=["setuptools", "pyserial"],
     extras_require={"test": ["pytest"]},
@@ -22,6 +28,7 @@ setup(
     entry_points={
         "console_scripts": [
             "serial_bridge_node = ackermann_serial_bridge.serial_bridge_node:main",
+            "cmd_vel_republisher = ackermann_serial_bridge.cmd_vel_republisher:main",
         ],
     },
 )

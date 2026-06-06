@@ -5,15 +5,15 @@ ackermann_serial_bridge:
     baudrate: 115200
 
     # Send / receive rates (Hz)
-    cmd_send_rate: 20.0
+    cmd_send_rate: 100.0
     read_rate: 100.0
 
     # Command timeout: if no /cmd_vel received within this many seconds,
     # the bridge automatically sends zero velocity.
-    command_timeout: 0.5
+    command_timeout: 5.0
 
     # Speed limits (applied to ROS /cmd_vel input before conversion)
-    max_linear_speed: 1.0    # m/s
+    max_linear_speed: 6.0    # m/s
     max_angular_speed: 2.0   # rad/s
 
     # Yaw sign convention:

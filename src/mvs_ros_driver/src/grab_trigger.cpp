@@ -5,12 +5,14 @@
  * grabs frames in a worker thread, and publishes via image_transport.
  * Supports hardware trigger mode with shared-memory timestamp injection.
  *
- * ROS1 → ROS2 port: catkin/rscpp → ament_cmake/rclcpp.
+ * ROS2 dynamic parameters: exposure_time, gain, gamma can be changed
+ * at runtime via `ros2 param set`.
  */
 
 #include "MvCameraControl.h"
 
 #include <rclcpp/rclcpp.hpp>
+#include <rcl_interfaces/msg/parameter_event.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/header.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -126,6 +128,28 @@ public:
     return true;
   }
 
+  /** Declare ROS2 dynamic parameters and register the callback. */
+  void declareDynamicParams() {
+    // Declare parameters with values loaded from config file.
+    // Users can override them at runtime with `ros2 param set`.
+    this->declare_parameter("exposure_time", exposure_time_);
+    this->declare_parameter("gain", gain_);
+    this->declare_parameter("gamma", gamma_);
+
+    // Read back in case user passed overrides via launch arguments
+    exposure_time_ = this->get_parameter("exposure_time").as_int();
+    gain_          = this->get_parameter("gain").as_double();
+    gamma_         = this->get_parameter("gamma").as_double();
+
+    // Register callback for runtime parameter changes
+    param_cb_handle_ = this->add_on_set_parameters_callback(
+      [this](const std::vector<rclcpp::Parameter> &params)
+        -> rcl_interfaces::msg::SetParametersResult
+      {
+        return onParamChange(params);
+      });
+  }
+
   /** Enumerate MVS devices, find the matching camera, open it, and start grabbing. */
   bool initCamera() {
     int nRet;
@@ -229,7 +253,7 @@ public:
   }
 
 private:
-  // ---- camera parameters (from YAML) ----
+  // ---- camera parameters (from YAML, overridable by ROS2 params) ----
   std::string config_path_;
   std::string serial_number_;
   std::string topic_name_;
@@ -250,10 +274,68 @@ private:
   image_transport::Publisher pub_;
   std::thread worker_;
   std::atomic<bool> running_;
+  rclcpp::Node::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
 
   // ---- shared-memory trigger timestamp ----
   TimeStamp *shm_ = nullptr;
   int shm_fd_ = -1;
+
+  // ---- dynamic parameter callback ----
+  rcl_interfaces::msg::SetParametersResult onParamChange(
+      const std::vector<rclcpp::Parameter> &params) {
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+
+    if (!handle_) {
+      result.successful = false;
+      result.reason = "Camera not initialized";
+      return result;
+    }
+
+    for (const auto &p : params) {
+      if (p.get_name() == "exposure_time") {
+        exposure_time_ = static_cast<int>(p.as_int());
+        if (exposure_auto_mode_ == 0) {
+          int nRet = MV_CC_SetExposureTime(handle_, exposure_time_);
+          if (nRet == MV_OK) {
+            RCLCPP_INFO(get_logger(), "ExposureTime updated to %d us", exposure_time_);
+          } else {
+            result.successful = false;
+            result.reason = "Failed to set ExposureTime [0x" + std::to_string(nRet) + "]";
+          }
+        } else {
+          RCLCPP_WARN(get_logger(), "ExposureTime ignored: ExposureAutoMode is %s",
+                      EXPOSURE_AUTO_STR[exposure_auto_mode_]);
+        }
+      }
+      else if (p.get_name() == "gain") {
+        gain_ = static_cast<float>(p.as_double());
+        if (gain_auto_ == 0) {
+          int nRet = MV_CC_SetGain(handle_, gain_);
+          if (nRet == MV_OK) {
+            RCLCPP_INFO(get_logger(), "Gain updated to %.2f", gain_);
+          } else {
+            result.successful = false;
+            result.reason = "Failed to set Gain";
+          }
+        } else {
+          RCLCPP_WARN(get_logger(), "Gain ignored: GainAuto is %s",
+                      GAIN_AUTO_STR[gain_auto_]);
+        }
+      }
+      else if (p.get_name() == "gamma") {
+        gamma_ = static_cast<float>(p.as_double());
+        int nRet = MV_CC_SetGamma(handle_, gamma_);
+        if (nRet == MV_OK) {
+          RCLCPP_INFO(get_logger(), "Gamma updated to %.2f", gamma_);
+        } else {
+          result.successful = false;
+          result.reason = "Failed to set Gamma";
+        }
+      }
+    }
+    return result;
+  }
 
   // ---- helpers ----
 
@@ -424,6 +506,7 @@ int main(int argc, char **argv) {
   auto node = std::make_shared<MvsCameraNode>(rclcpp::NodeOptions());
 
   if (!node->loadConfig(argv[1])) return 1;
+  node->declareDynamicParams();
   if (!node->initCamera()) return 1;
   node->startPublishing();
 
