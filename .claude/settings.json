@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:console.groq.com)",
+      "Bash(pip3 list *)",
+      "Bash(sudo apt-get install -y libportaudio2)",
+      "Bash(sudo apt-get update)",
+      "Bash(wget -q http://ports.ubuntu.com/pool/universe/p/portaudio19/libportaudio2_19.6.0-1.1_arm64.deb -O /tmp/libportaudio2.deb)",
+      "Bash(sudo dpkg -i /tmp/libportaudio2.deb)",
+      "Bash(python3 -c \"import pyaudio; print\\('✅ PyAudio OK'\\)\")",
+      "Bash(cat /etc/udev/rules.d/50-respeaker.rules 2>/dev/null || echo \"文件不存在\")",
+      "Read(//etc/udev/rules.d/**)",
+      "Bash(python3 -c \"import numpy; print\\(numpy.__version__\\)\")"
+    ]
+  }
+}

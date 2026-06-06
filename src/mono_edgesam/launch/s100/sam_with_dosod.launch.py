@@ -29,6 +29,14 @@ def generate_launch_description():
     basic_path = os.path.join(
         get_package_prefix('mono_edgesam'),
         'lib/mono_edgesam/config')
+    dosod_install_config_path = os.path.join(
+        get_package_prefix('hobot_dosod'),
+        'lib/hobot_dosod/config')
+    dosod_source_config_path = '/home/sunrise/fast_ws/src/hobot_dosod/config'
+    dosod_config_path = (
+        dosod_install_config_path
+        if os.path.exists(os.path.join(dosod_install_config_path, 's100/dosod_mlp3x_l_rep-int16.hbm'))
+        else dosod_source_config_path)
 
     print("mono_edgesam basic_path is ", basic_path)
 
@@ -40,16 +48,46 @@ def generate_launch_description():
         "sam_image_height", default_value=TextSubstitution(text="1080")
     )
     msg_pub_topic_name_launch_arg = DeclareLaunchArgument(
-        "sam_msg_pub_topic_name", default_value=TextSubstitution(text="perception/segmentation/edgesam")
+        "sam_msg_pub_topic_name", default_value=TextSubstitution(text="/perception/segmentation/edgesam")
+    )
+    ros_img_sub_topic_launch_arg = DeclareLaunchArgument(
+        "sam_ros_img_sub_topic_name", default_value=TextSubstitution(text="/left_camera/image")
+    )
+    websocket_image_topic_default = "/image_mjpeg/image" if os.getenv('CAM_TYPE') == "ros" else "/image"
+    websocket_image_topic_launch_arg = DeclareLaunchArgument(
+        "sam_websocket_image_topic", default_value=TextSubstitution(text=websocket_image_topic_default)
+    )
+    codec_in_format_launch_arg = DeclareLaunchArgument(
+        "sam_codec_in_format", default_value=TextSubstitution(text="bgr8")
+    )
+    sam_cache_len_limit_launch_arg = DeclareLaunchArgument(
+        "sam_cache_len_limit", default_value=TextSubstitution(text="1")
+    )
+    sam_max_rois_launch_arg = DeclareLaunchArgument(
+        "sam_max_rois", default_value=TextSubstitution(text="0")
     )
     model_file_name_launch_arg = DeclareLaunchArgument(
-        "dosod_model_file_name", default_value=TextSubstitution(text="config/dosod_mlp3x_l_rep-int16.hbm")
+        "dosod_model_file_name",
+        default_value=TextSubstitution(
+            text=os.path.join(dosod_config_path, "s100/dosod_mlp3x_l_rep-int16.hbm"))
     )
     vocabulary_file_name_launch_arg = DeclareLaunchArgument(
-        "dosod_vocabulary_file_name", default_value=TextSubstitution(text="config/offline_vocabulary.json")
+        "dosod_vocabulary_file_name",
+        default_value=TextSubstitution(
+            text=os.path.join(dosod_config_path, "offline_vocabulary.json"))
     )
     score_threshold_launch_arg = DeclareLaunchArgument(
-        "dosod_score_threshold", default_value=TextSubstitution(text="0.2")
+        "dosod_score_threshold", default_value=TextSubstitution(text="0.3")
+    )
+    target_classes_launch_arg = DeclareLaunchArgument(
+        "dosod_target_classes", default_value=TextSubstitution(text="cup")
+    )
+    sam_dump_render_launch_arg = DeclareLaunchArgument(
+        "sam_dump_render_img", default_value=TextSubstitution(text="0")
+    )
+    sam_dump_render_path_launch_arg = DeclareLaunchArgument(
+        "sam_dump_render_path",
+        default_value=TextSubstitution(text="/home/sunrise/fast_ws/src/mono_edgesam/output")
     )
     encoder_model_file_name_launch_arg = DeclareLaunchArgument(
         "sam_encoder_model_file_name", default_value=TextSubstitution(text="edgesam_encoder_512.hbm")
@@ -64,6 +102,7 @@ def generate_launch_description():
     cam_node = None
     camera_type_mipi = None
     camera_device_arg = None
+    use_external_ros_image = camera_type == "ros"
 
     if camera_type == "usb":
         # usb cam图片发布pkg
@@ -115,6 +154,9 @@ def generate_launch_description():
         cam_node = fb_node
         camera_type_mipi = True
         camera_device_arg = feedback_picture_arg
+
+    elif camera_type == "ros":
+        print("using external ros image topic")
 
     else:
         if camera_type == "mipi":
@@ -180,9 +222,24 @@ def generate_launch_description():
                 get_package_share_directory('websocket'),
                 'launch/websocket.launch.py')),
         launch_arguments={
-            'websocket_image_topic': '/image',
+            'websocket_image_topic': LaunchConfiguration("sam_websocket_image_topic"),
             'websocket_image_type': 'mjpeg',
             'websocket_smart_topic': LaunchConfiguration("sam_msg_pub_topic_name")
+        }.items()
+    )
+
+    ros_jpeg_codec_node = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('hobot_codec'),
+                'launch/hobot_codec_encode.launch.py')),
+        launch_arguments={
+            'codec_in_mode': 'ros',
+            'codec_in_format': LaunchConfiguration("sam_codec_in_format"),
+            'codec_out_mode': 'ros',
+            'codec_out_format': 'jpeg',
+            'codec_sub_topic': LaunchConfiguration("sam_ros_img_sub_topic_name"),
+            'codec_pub_topic': LaunchConfiguration("sam_websocket_image_topic")
         }.items()
     )
 
@@ -193,14 +250,24 @@ def generate_launch_description():
         output='screen',
         parameters=[
             {"feed_type": 1},
+            {"cache_len_limit": LaunchConfiguration(
+                "sam_cache_len_limit")},
+            {"max_rois": LaunchConfiguration(
+                "sam_max_rois")},
             {"is_regular_box": 0},
-            {"is_shared_mem_sub": 1},
+            {"is_shared_mem_sub": 0 if use_external_ros_image else 1},
+            {"ros_img_sub_topic_name": LaunchConfiguration(
+                "sam_ros_img_sub_topic_name")},
+            {"dump_render_img": LaunchConfiguration(
+                "sam_dump_render_img")},
+            {"dump_render_path": LaunchConfiguration(
+                "sam_dump_render_path")},
             {"ai_msg_sub_topic_name": "/hobot_dnn_detection"},
             {"encoder_model_file_name": [basic_path, "/", LaunchConfiguration(
                 "sam_encoder_model_file_name")]},
             {"decoder_model_file_name": [basic_path, "/", LaunchConfiguration(
                 "sam_decoder_model_file_name")]},
-            {"msg_pub_topic_name": LaunchConfiguration(
+            {"ai_msg_pub_topic_name": LaunchConfiguration(
                 "sam_msg_pub_topic_name")}
         ],
         arguments=['--ros-args', '--log-level', 'warn']
@@ -213,7 +280,9 @@ def generate_launch_description():
         output='screen',
         parameters=[
             {"feed_type": 1},
-            {"is_shared_mem_sub": 1},
+            {"is_shared_mem_sub": 0 if use_external_ros_image else 1},
+            {"ros_img_sub_topic_name": LaunchConfiguration(
+                "sam_ros_img_sub_topic_name")},
             {"roi": False},
             {"dump_raw_img": 0},
             {"dump_render_img": 0},
@@ -223,6 +292,8 @@ def generate_launch_description():
             {"vocabulary_file_name": LaunchConfiguration(
                 "dosod_vocabulary_file_name")},
             {"trigger_mode": 0},
+            {"target_classes": LaunchConfiguration(
+                "dosod_target_classes")},
             {"class_mode": 0},
             {"score_threshold": LaunchConfiguration(
                 "dosod_score_threshold")}
@@ -237,15 +308,51 @@ def generate_launch_description():
                         'launch/hobot_shm.launch.py'))
             )
 
+    if use_external_ros_image:
+        return LaunchDescription([
+            image_width_launch_arg,
+            image_height_launch_arg,
+            msg_pub_topic_name_launch_arg,
+            ros_img_sub_topic_launch_arg,
+            websocket_image_topic_launch_arg,
+            codec_in_format_launch_arg,
+            sam_cache_len_limit_launch_arg,
+            sam_max_rois_launch_arg,
+            model_file_name_launch_arg,
+            vocabulary_file_name_launch_arg,
+            score_threshold_launch_arg,
+            target_classes_launch_arg,
+            sam_dump_render_launch_arg,
+            sam_dump_render_path_launch_arg,
+            encoder_model_file_name_launch_arg,
+            decoder_model_file_name_launch_arg,
+            # 外部ROS图像编码给websocket显示
+            ros_jpeg_codec_node,
+            # 启动sam pkg
+            sam_node,
+            # 启动dosod pkg
+            dosod_node,
+            # 启动web展示pkg
+            web_node
+        ])
+
     if camera_type_mipi:
         return LaunchDescription([
             camera_device_arg,
             image_width_launch_arg,
             image_height_launch_arg,
             msg_pub_topic_name_launch_arg,
+            ros_img_sub_topic_launch_arg,
+            websocket_image_topic_launch_arg,
+            codec_in_format_launch_arg,
+            sam_cache_len_limit_launch_arg,
+            sam_max_rois_launch_arg,
             model_file_name_launch_arg,
             vocabulary_file_name_launch_arg,
             score_threshold_launch_arg,
+            target_classes_launch_arg,
+            sam_dump_render_launch_arg,
+            sam_dump_render_path_launch_arg,
             encoder_model_file_name_launch_arg,
             decoder_model_file_name_launch_arg,
             # 启动零拷贝环境配置node
@@ -267,9 +374,17 @@ def generate_launch_description():
             image_width_launch_arg,
             image_height_launch_arg,
             msg_pub_topic_name_launch_arg,
+            ros_img_sub_topic_launch_arg,
+            websocket_image_topic_launch_arg,
+            codec_in_format_launch_arg,
+            sam_cache_len_limit_launch_arg,
+            sam_max_rois_launch_arg,
             model_file_name_launch_arg,
             vocabulary_file_name_launch_arg,
             score_threshold_launch_arg,
+            target_classes_launch_arg,
+            sam_dump_render_launch_arg,
+            sam_dump_render_path_launch_arg,
             encoder_model_file_name_launch_arg,
             decoder_model_file_name_launch_arg,
             # 启动零拷贝环境配置node

@@ -13,7 +13,10 @@
 // limitations under the License.
 
 #include <math.h>
+#include <algorithm>
 #include <memory>
+#include <numeric>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <utility>
 
@@ -37,6 +40,20 @@ int CalTimeMsDuration(const builtin_interfaces::msg::Time& start,
                       const builtin_interfaces::msg::Time& end) {
   return (end.sec - start.sec) * 1000 + end.nanosec / 1000 / 1000 -
          start.nanosec / 1000 / 1000;
+}
+
+cv::Mat NV12ToBGRMat(const char *data, int height, int width) {
+  cv::Mat nv12(height * 3 / 2, width, CV_8UC1,
+               const_cast<char *>(data));
+  cv::Mat bgr;
+  cv::cvtColor(nv12, bgr, cv::COLOR_YUV2BGR_NV12);
+  return bgr;
+}
+
+void EnsureDir(const std::string &path) {
+  if (!path.empty() && path != ".") {
+    mkdir(path.c_str(), 0755);
+  }
 }
 
 // 使用hobotcv resize nv12格式图片，固定图片宽高比
@@ -88,7 +105,9 @@ EdgeSamNode::EdgeSamNode(const std::string& node_name,
                                const NodeOptions& options)
     : DnnNode(node_name, options) {
   this->declare_parameter<int>("cache_len_limit", cache_len_limit_);
+  this->declare_parameter<int>("max_rois", max_rois_);
   this->declare_parameter<int>("dump_render_img", dump_render_img_);
+  this->declare_parameter<std::string>("dump_render_path", dump_render_path_);
   this->declare_parameter<int>("feed_type", feed_type_);
   this->declare_parameter<std::string>("image", image_file_);
   this->declare_parameter<std::string>("encoder_model_file_name",
@@ -99,6 +118,10 @@ EdgeSamNode::EdgeSamNode(const std::string& node_name,
   this->declare_parameter<int>("is_padding_seg", is_padding_seg_);
   this->declare_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->declare_parameter<int>("is_sync_mode", is_sync_mode_);
+  this->declare_parameter<double>("box_x1", box_x1_);
+  this->declare_parameter<double>("box_y1", box_y1_);
+  this->declare_parameter<double>("box_x2", box_x2_);
+  this->declare_parameter<double>("box_y2", box_y2_);
   this->declare_parameter<std::string>("ai_msg_pub_topic_name",
                                        ai_msg_pub_topic_name_);
   this->declare_parameter<std::string>("ai_msg_sub_topic_name",
@@ -107,7 +130,9 @@ EdgeSamNode::EdgeSamNode(const std::string& node_name,
                                        ros_img_sub_topic_name_);
 
   this->get_parameter<int>("cache_len_limit", cache_len_limit_);
+  this->get_parameter<int>("max_rois", max_rois_);
   this->get_parameter<int>("dump_render_img", dump_render_img_);
+  this->get_parameter<std::string>("dump_render_path", dump_render_path_);
   this->get_parameter<int>("feed_type", feed_type_);
   this->get_parameter<std::string>("image", image_file_);
   this->get_parameter<std::string>("encoder_model_file_name", model_file_names_[0]);
@@ -116,6 +141,10 @@ EdgeSamNode::EdgeSamNode(const std::string& node_name,
   this->get_parameter<int>("is_padding_seg", is_padding_seg_);
   this->get_parameter<int>("is_shared_mem_sub", is_shared_mem_sub_);
   this->get_parameter<int>("is_sync_mode", is_sync_mode_);
+  this->get_parameter<double>("box_x1", box_x1_);
+  this->get_parameter<double>("box_y1", box_y1_);
+  this->get_parameter<double>("box_x2", box_x2_);
+  this->get_parameter<double>("box_y2", box_y2_);
   this->get_parameter<std::string>("ai_msg_pub_topic_name",
                                    ai_msg_pub_topic_name_);
   this->get_parameter<std::string>("ai_msg_sub_topic_name",
@@ -126,7 +155,9 @@ EdgeSamNode::EdgeSamNode(const std::string& node_name,
   std::stringstream ss;
   ss << "Parameter:"
      << "\n cache_len_limit: " << cache_len_limit_
+     << "\n max_rois: " << max_rois_
      << "\n dump_render_img: " << dump_render_img_
+     << "\n dump_render_path: " << dump_render_path_
      << "\n feed_type(0:local, 1:sub): " << feed_type_
      << "\n image: " << image_file_
      << "\n encoder_model_file_name: " << model_file_names_[0]
@@ -135,6 +166,10 @@ EdgeSamNode::EdgeSamNode(const std::string& node_name,
      << "\n is_padding_seg: " << is_padding_seg_
      << "\n is_shared_mem_sub: " << is_shared_mem_sub_
      << "\n is_sync_mode: " << is_sync_mode_
+     << "\n box_x1: " << box_x1_
+     << "\n box_y1: " << box_y1_
+     << "\n box_x2: " << box_x2_
+     << "\n box_y2: " << box_y2_
      << "\n ai_msg_pub_topic_name: " << ai_msg_pub_topic_name_
      << "\n ai_msg_sub_topic_name: " << ai_msg_sub_topic_name_
      << "\n ros_img_sub_topic_name: " << ros_img_sub_topic_name_;
@@ -212,6 +247,22 @@ int EdgeSamNode::SetNodePara() {
     regular_box_ = {330.0, 170.0, 850.0, 500.0};   // 对应 1024 * 1024 模型输入
   } else if (model_input_height_ == 512 && model_input_width_ == 512) {
     regular_box_ = {165.0, 85.0, 425.0, 250.0};    // 对应 512 * 512 模型输入
+  }
+
+  if (box_x1_ >= 0.0 && box_y1_ >= 0.0 && box_x2_ > box_x1_ && box_y2_ > box_y1_) {
+    regular_box_ = {
+      static_cast<float>(box_x1_),
+      static_cast<float>(box_y1_),
+      static_cast<float>(box_x2_),
+      static_cast<float>(box_y2_)};
+  }
+  if (regular_box_.size() == 4) {
+    RCLCPP_WARN(rclcpp::get_logger("mono_edgesam"),
+                "Use SAM box: [%.2f, %.2f, %.2f, %.2f]",
+                regular_box_[0],
+                regular_box_[1],
+                regular_box_[2],
+                regular_box_[3]);
   }
 
   models_[1]->GetOutputTensorProperties(tensor_properties, 1);
@@ -379,10 +430,14 @@ int EdgeSamNode::PostProcess(
 
   // 如果开启了渲染，本地渲染并存储图片
   if (dump_render_img_ == 1 && !parser_output->bgr_mat.empty()) {
+    EnsureDir(dump_render_path_);
     std::string saving_path = "render_sam_" + pub_data->header.frame_id + "_" +
                             std::to_string(pub_data->header.stamp.sec) + "_" +
                             std::to_string(pub_data->header.stamp.nanosec) +
                             ".jpeg";
+    if (!dump_render_path_.empty() && dump_render_path_ != ".") {
+      saving_path = dump_render_path_ + "/" + saving_path;
+    }
     RenderSeg(parser_output->bgr_mat, det_result->perception.seg, saving_path);
   }
   if (feed_type_ == 0) {
@@ -462,7 +517,7 @@ int EdgeSamNode::PostProcess(
                 capture.img.step);
 
     ai_msgs::msg::Target target;
-    target.set__type("parking_space");
+    target.set__type("segmentation");
     
     ai_msgs::msg::Attribute attribute;
     attribute.set__type("segmentation_label_count");
@@ -561,7 +616,57 @@ void EdgeSamNode::RosImgProcess(
   std::shared_ptr<DNNTensor> tensor_y = nullptr;
   std::shared_ptr<DNNTensor> tensor_uv = nullptr;
   cv::Mat bgr_mat;
-  if ("nv12" == img_msg->encoding) {  // nv12格式使用hobotcv resize
+  if ("rgb8" == img_msg->encoding || "bgr8" == img_msg->encoding) {
+    auto cv_img =
+        cv_bridge::cvtColorForDisplay(cv_bridge::toCvShare(img_msg), "bgr8");
+    float ratio_w =
+        static_cast<float>(img_msg->width) / static_cast<float>(model_input_width_);
+    float ratio_h =
+        static_cast<float>(img_msg->height) / static_cast<float>(model_input_height_);
+    dnn_output->ratio = std::max(ratio_w, ratio_h);
+    dnn_output->resized_w =
+        static_cast<float>(img_msg->width) / dnn_output->ratio;
+    dnn_output->resized_h =
+        static_cast<float>(img_msg->height) / dnn_output->ratio;
+    int remain = dnn_output->resized_w % 16;
+    if (remain != 0) {
+      dnn_output->resized_w -= remain;
+      dnn_output->ratio = static_cast<float>(img_msg->width) / dnn_output->resized_w;
+      dnn_output->resized_h =
+          static_cast<float>(img_msg->height) / dnn_output->ratio;
+    }
+    dnn_output->resized_h =
+        dnn_output->resized_h % 2 == 0 ? dnn_output->resized_h : dnn_output->resized_h - 1;
+
+    cv::Mat resized_bgr_mat;
+    cv::resize(cv_img->image,
+               resized_bgr_mat,
+               cv::Size(dnn_output->resized_w, dnn_output->resized_h));
+    cv::Mat nv12_mat;
+    int ret = hobot::dnn_node::ImageProc::BGRToNv12(resized_bgr_mat, nv12_mat);
+    if (ret != 0) {
+      RCLCPP_ERROR(rclcpp::get_logger("mono_edgesam"),
+                   "Convert BGR to NV12 fail.");
+      return;
+    }
+    tensor_y = InputPreProcessor::GetYTensorFromNV12Img(
+        reinterpret_cast<const char *>(nv12_mat.data),
+        resized_bgr_mat.rows,
+        resized_bgr_mat.cols,
+        model_input_height_,
+        model_input_width_,
+        tensor_y_properties);
+    tensor_uv = InputPreProcessor::GetUVTensorFromNV12Img(
+        reinterpret_cast<const char *>(nv12_mat.data),
+        resized_bgr_mat.rows,
+        resized_bgr_mat.cols,
+        model_input_height_,
+        model_input_width_,
+        tensor_uv_properties);
+    if (dump_render_img_) {
+      dnn_output->bgr_mat = resized_bgr_mat.clone();
+    }
+  } else if ("nv12" == img_msg->encoding) {  // nv12格式使用hobotcv resize
     if (img_msg->height != static_cast<uint32_t>(model_input_height_) ||
         img_msg->width != static_cast<uint32_t>(model_input_width_)) {
       // 需要做resize处理
@@ -596,6 +701,12 @@ void EdgeSamNode::RosImgProcess(
           model_input_height_,
           model_input_width_,
           tensor_uv_properties);
+      if (dump_render_img_) {
+        dnn_output->bgr_mat = NV12ToBGRMat(
+            reinterpret_cast<const char *>(out_img.data),
+            out_img_height,
+            out_img_width);
+      }
     } else {
       dnn_output->resized_h = std::min(static_cast<int>(img_msg->height), model_input_height_);
       dnn_output->resized_w = std::min(static_cast<int>(img_msg->width), model_input_width_);
@@ -614,10 +725,16 @@ void EdgeSamNode::RosImgProcess(
           model_input_height_,
           model_input_width_,
           tensor_uv_properties);
+      if (dump_render_img_) {
+        dnn_output->bgr_mat = NV12ToBGRMat(
+            reinterpret_cast<const char *>(img_msg->data.data()),
+            img_msg->height,
+            img_msg->width);
+      }
     }
   } else {
     RCLCPP_ERROR(rclcpp::get_logger("mono_edgesam"),
-                 "Unsupported img encoding: %s, only nv12 img encoding is "
+                 "Unsupported img encoding: %s, only rgb8/bgr8/nv12 img encoding is "
                  "supported for ros img.",
                  img_msg->encoding.data());
     return;
@@ -727,6 +844,12 @@ void EdgeSamNode::SharedMemImgProcess(
           model_input_height_,
           model_input_width_,
           tensor_uv_properties);
+      if (dump_render_img_) {
+        dnn_output->bgr_mat = NV12ToBGRMat(
+            reinterpret_cast<const char *>(out_img.data),
+            out_img_height,
+            out_img_width);
+      }
 
     } else {
       dnn_output->resized_h = std::min(static_cast<int>(img_msg->height), model_input_height_);
@@ -747,6 +870,12 @@ void EdgeSamNode::SharedMemImgProcess(
           model_input_height_,
           model_input_width_,
           tensor_uv_properties);
+      if (dump_render_img_) {
+        dnn_output->bgr_mat = NV12ToBGRMat(
+            reinterpret_cast<const char *>(img_msg->data.data()),
+            img_msg->height,
+            img_msg->width);
+      }
     }
   } else {
     RCLCPP_ERROR(rclcpp::get_logger("mono_edgesam"),
@@ -811,27 +940,67 @@ int EdgeSamNode::FeedFromLocal() {
 
   // 1. 获取图片数据DNNTensor
   cv::Mat bgr_mat = cv::imread(image_file_, cv::IMREAD_COLOR);
+  if (bgr_mat.empty()) {
+    RCLCPP_ERROR(rclcpp::get_logger("mono_edgesam"),
+                 "Read image fail with image: %s",
+                 image_file_.c_str());
+    return -1;
+  }
+
+  float ratio_w =
+      static_cast<float>(bgr_mat.cols) / static_cast<float>(model_input_width_);
+  float ratio_h =
+      static_cast<float>(bgr_mat.rows) / static_cast<float>(model_input_height_);
+  float dst_ratio = std::max(ratio_w, ratio_h);
+  int resized_width = model_input_width_;
+  int resized_height = model_input_height_;
+  if (dst_ratio == ratio_w) {
+    resized_width = model_input_width_;
+    resized_height = static_cast<float>(bgr_mat.rows) / dst_ratio;
+  } else {
+    resized_width = static_cast<float>(bgr_mat.cols) / dst_ratio;
+    resized_height = model_input_height_;
+  }
+  int remain = resized_width % 16;
+  if (remain != 0) {
+    resized_width -= remain;
+    dst_ratio = static_cast<float>(bgr_mat.cols) / resized_width;
+    resized_height = static_cast<float>(bgr_mat.rows) / dst_ratio;
+  }
+  resized_height =
+      resized_height % 2 == 0 ? resized_height : resized_height - 1;
+
+  cv::Mat resized_bgr_mat;
+  cv::resize(bgr_mat, resized_bgr_mat, cv::Size(resized_width, resized_height));
+
   cv::Mat nv12_mat;
-  int ret = hobot::dnn_node::ImageProc::BGRToNv12(bgr_mat, nv12_mat);
+  int ret = hobot::dnn_node::ImageProc::BGRToNv12(resized_bgr_mat, nv12_mat);
+  if (ret != 0) {
+    RCLCPP_ERROR(rclcpp::get_logger("mono_edgesam"),
+                 "Convert BGR to NV12 fail with image: %s",
+                 image_file_.c_str());
+    return -1;
+  }
   hbDNNTensorProperties tensor_properties;
   models_[0]->GetInputTensorProperties(tensor_properties, 0);
   std::shared_ptr<DNNTensor> tensor_y = InputPreProcessor::GetYTensorFromNV12Img(
                                                   reinterpret_cast<const char*>(nv12_mat.data),
-                                                  bgr_mat.rows,
-                                                  bgr_mat.cols,
+                                                  resized_bgr_mat.rows,
+                                                  resized_bgr_mat.cols,
                                                   model_input_height_,
                                                   model_input_width_,
                                                   tensor_properties);
   models_[0]->GetInputTensorProperties(tensor_properties, 1);
   std::shared_ptr<DNNTensor> tensor_uv = InputPreProcessor::GetUVTensorFromNV12Img(
                                                   reinterpret_cast<const char*>(nv12_mat.data),
-                                                  bgr_mat.rows,
-                                                  bgr_mat.cols,
+                                                  resized_bgr_mat.rows,
+                                                  resized_bgr_mat.cols,
                                                   model_input_height_,
                                                   model_input_width_,
                                                   tensor_properties);
-  dnn_output->resized_h = std::min(bgr_mat.rows, model_input_height_);
-  dnn_output->resized_w = std::min(bgr_mat.cols, model_input_width_);
+  dnn_output->resized_h = resized_height;
+  dnn_output->resized_w = resized_width;
+  dnn_output->ratio = dst_ratio;
 
   if (!tensor_y || !tensor_uv) {
     RCLCPP_ERROR(rclcpp::get_logger("mono_edgesam"),
@@ -842,8 +1011,7 @@ int EdgeSamNode::FeedFromLocal() {
 
   // 2. 获取 Box Tensor
   models_[1]->GetInputTensorProperties(tensor_properties, 1);
-  std::vector<std::vector<float>> boxes =   
-        {{331.2, 195.08884, 849.6, 590.0638}};
+  std::vector<std::vector<float>> boxes = {regular_box_};
 
   std::shared_ptr<DNNTensor> tensor_box = 
       InputPreProcessor::GetBoxTensor(boxes, tensor_properties);
@@ -971,6 +1139,27 @@ void EdgeSamNode::RunPredict() {
         msg->header.set__frame_id(dnn_output->msg_header->frame_id);
         msg_publisher_->publish(std::move(msg));
         continue;
+      }
+      if (max_rois_ > 0 && rois->size() > static_cast<size_t>(max_rois_)) {
+        std::vector<size_t> indices(rois->size());
+        std::iota(indices.begin(), indices.end(), 0);
+        std::sort(indices.begin(), indices.end(),
+                  [&confidences](const size_t lhs, const size_t rhs) {
+                    return confidences[lhs] > confidences[rhs];
+                  });
+
+        auto filtered_rois = std::make_shared<std::vector<hbDNNRoi>>();
+        std::vector<std::string> filtered_class_names;
+        std::vector<float> filtered_confidences;
+        for (int i = 0; i < max_rois_; ++i) {
+          size_t index = indices[i];
+          filtered_rois->push_back((*rois)[index]);
+          filtered_class_names.push_back(class_names[index]);
+          filtered_confidences.push_back(confidences[index]);
+        }
+        rois = filtered_rois;
+        class_names = filtered_class_names;
+        confidences = filtered_confidences;
       }
       if (GenScaleBox(rois, boxes, dnn_output->ratio)) {
         RCLCPP_ERROR(rclcpp::get_logger("mono_edgesam"),

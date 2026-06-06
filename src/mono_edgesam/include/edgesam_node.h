@@ -170,6 +170,7 @@ class EdgeSamNode : public DnnNode {
   void RosImgProcess(const sensor_msgs::msg::Image::ConstSharedPtr msg);
 
   int dump_render_img_ = 0;
+  std::string dump_render_path_ = ".";
   // 用于预测的图片来源, 0：本地彩色图, 1： 订阅到的image msg
   int feed_type_ = 0;
 
@@ -188,6 +189,10 @@ class EdgeSamNode : public DnnNode {
 
 //   std::vector<float> regular_box_ = {331.2, 195.08884, 849.6, 590.0638};   // 对应 1024 * 1024 模型输入
   std::vector<float> regular_box_;
+  double box_x1_ = -1.0;
+  double box_y1_ = -1.0;
+  double box_x2_ = -1.0;
+  double box_y2_ = -1.0;
 
   std::string model_name_ = "sam";
 
@@ -217,6 +222,8 @@ class EdgeSamNode : public DnnNode {
   // 将订阅到的图片数据转成pym之后缓存
   // 在线程中执行推理，避免阻塞订阅IO通道，导致AI msg消息丢失
   int cache_len_limit_ = 8;
+  // 每帧最多分割的检测框数量，0表示不限制
+  int max_rois_ = 0;
   std::mutex mtx_img_;
   std::condition_variable cv_img_;
 

@@ -20,6 +20,7 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <fstream>
@@ -445,13 +446,13 @@ private:
         stamp = this->now();
       }
 
-      // Convert pixel format to RGB8
+      // Convert pixel format to BGR8, which matches OpenCV and hobot_codec.
       conv_param.nWidth        = frame_info.nWidth;
       conv_param.nHeight       = frame_info.nHeight;
       conv_param.pSrcData      = raw_data;
       conv_param.nSrcDataLen   = buf_size;
       conv_param.enSrcPixelType = frame_info.enPixelType;
-      conv_param.enDstPixelType = PixelType_Gvsp_RGB8_Packed;
+      conv_param.enDstPixelType = PixelType_Gvsp_BGR8_Packed;
       conv_param.pDstBuffer    = bgr_data;
       conv_param.nDstBufferSize = buf_size;
 
@@ -463,13 +464,16 @@ private:
 
       cv::Mat img(frame_info.nHeight, frame_info.nWidth, CV_8UC3, bgr_data);
       if (image_scale_ > 0.0f && image_scale_ != 1.0f) {
+        int scaled_width = static_cast<int>(img.cols * image_scale_);
+        int scaled_height = static_cast<int>(img.rows * image_scale_);
+        scaled_width = std::max(16, scaled_width - scaled_width % 16);
+        scaled_height = std::max(2, scaled_height - scaled_height % 2);
         cv::resize(img, img,
-                   cv::Size(static_cast<int>(img.cols * image_scale_),
-                            static_cast<int>(img.rows * image_scale_)),
+                   cv::Size(scaled_width, scaled_height),
                    cv::INTER_LINEAR);
       }
 
-      auto msg = cv_bridge::CvImage(std_msgs::msg::Header(), "rgb8", img).toImageMsg();
+      auto msg = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", img).toImageMsg();
       msg->header.stamp = stamp;
       msg->header.frame_id = "camera";
       pub_.publish(msg);

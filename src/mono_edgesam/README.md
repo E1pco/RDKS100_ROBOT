@@ -1,38 +1,38 @@
-English| [简体中文](./README_cn.md)
+[English](./README.md) | 简体中文
 
 Getting Started with mono edgesam
 =======
 
-# Feature Introduction
+# 功能介绍
 
-The mono edge sam package is a usage example based on [edge SAM](https://github.com/chongzhou96/EdgeSAM) quantification deployment. The image data comes from local image feedback and subscribed image msg. SAM relies on the input of the detection box for segmentation, and segments the targets in the detection box without specifying the category information of the targets, only providing the box. 
+mono_edgesam package是基于 Edge SAM 量化部署的使用示例。图像数据来源于本地图片回灌和订阅到的image msg。SAM 依赖检测框输入进行分割, 并分割检测框中的目标, 无需指定目标的类别信息, 仅需提供框。
 
-In this example, we provide two deployment methods:
--Regular box for segmentation: A detection box in the center of the image is fixed for segmentation.
--Subscription box for segmentation: Subscribe to the detection box information output by the upstream detection network and segment the information in the box.
+本示例中, 我们提供了两种部署展示方式:
+- 固定框分割：固定了检测框（图片中央）用以分割。
+- 订阅框分割：订阅上游检测网络输出的检测框信息, 对框中的信息进行分割。
 
-# Development Environment
+# 开发环境
 
-- Programming Language: C/C++
-- Development Platform: X5/S100/S600
-- System Version: Ubuntu 22.04/Ubuntu 24.04
-- Compilation Toolchain: Linaro GCC 11.4.0/Linaro GCC 13.3.0
+- 编程语言: C/C++
+- 开发平台: X5/S100/S600
+- 系统版本：Ubuntu 22.04/Ubuntu 24.04
+- 编译工具链: Linux GCC 11.4.0/Linux GCC 13.3.0
 
-# Compilation
+# 编译
 
-- X5 Version: Supports compilation on the X5 Ubuntu system and cross-compilation using Docker on a PC.
+- X5版本：支持在X5 Ubuntu系统上编译和在PC上使用docker交叉编译两种方式。
 
-- S100 Version: Supports compilation on the S100 Ubuntu system and cross-compilation using Docker on a PC.
+- S100版本：支持在S100 Ubuntu系统上编译和在PC上使用docker交叉编译两种方式。
 
-- S600 Version: Supports compilation on the S600 Ubuntu system and cross-compilation using Docker on a PC.
+- S600版本：支持在S600 Ubuntu系统上编译和在PC上使用docker交叉编译两种方式。
 
-It also supports controlling the dependencies and functionality of the compiled pkg through compilation options.
+同时支持通过编译选项控制编译pkg的依赖和pkg的功能。
 
-## Dependency Libraries
+## 依赖库
 
-- OpenCV: 3.4.5
+- opencv:3.4.5
 
-ROS Packages:
+ros package：
 
 - dnn node
 - cv_bridge
@@ -40,39 +40,42 @@ ROS Packages:
 - hbm_img_msgs
 - ai_msgs
 
-hbm_img_msgs is a custom image message format used for image transmission in shared memory scenarios. The hbm_img_msgs pkg is defined in hobot_msgs; therefore, if shared memory is used for image transmission, this pkg is required.
+hbm_img_msgs为自定义的图片消息格式, 用于shared mem场景下的图片传输, hbm_img_msgs pkg定义在hobot_msgs中, 因此如果使用shared mem进行图片传输, 需要依赖此pkg。
 
-## Compilation Options
 
-1. SHARED_MEM
+## 编译选项
 
-- Shared memory transmission switch, enabled by default (ON), can be turned off during compilation using the -DSHARED_MEM=OFF command.
-- When enabled, compilation and execution depend on the hbm_img_msgs pkg and require the use of tros for compilation.
-- When disabled, compilation and execution do not depend on the hbm_img_msgs pkg, supporting compilation using native ROS and tros.
-- For shared memory communication, only subscription to nv12 format images is currently supported.## Compile on X3/Rdkultra Ubuntu System
+1、SHARED_MEM
 
-1. Compilation Environment Verification
+- shared mem（共享内存传输）使能开关, 默认打开（ON）, 编译时使用-DSHARED_MEM=OFF命令关闭。
+- 如果打开, 编译和运行会依赖hbm_img_msgs pkg, 并且需要使用tros进行编译。
+- 如果关闭, 编译和运行不依赖hbm_img_msgs pkg, 支持使用原生ros和tros进行编译。
+- 对于shared mem通信方式, 当前只支持订阅nv12格式图片。
 
-- The RDK Ubuntu system is installed on the board.
-- The current compilation terminal has set up the TogetherROS environment variable: `source PATH/setup.bash`. Where PATH is the installation path of TogetherROS.
-- The ROS2 compilation tool colcon is installed. If the installed ROS does not include the compilation tool colcon, it needs to be installed manually. Installation command for colcon: `pip install -U colcon-common-extensions`.
-- The dnn node package has been compiled.
+## RDK Ubuntu系统上编译
 
-2. Compilation
+1、编译环境确认
 
-- Compilation command: `colcon build --packages-select mono_edgesam`
+- 板端已安装RDK Ubuntu系统。
+- 当前编译终端已设置TogetherROS环境变量：`source PATH/setup.bash`。其中PATH为TogetherROS的安装路径。
+- 已安装ROS2编译工具colcon。安装的ROS不包含编译工具colcon, 需要手动安装colcon。colcon安装命令：`pip install -U colcon-common-extensions`
+- 已编译dnn node package
 
-## Docker Cross-Compilation
+2、编译
 
-1. Compilation Environment Verification
+- 编译命令：`colcon build --packages-select mono_edgesam`
 
-- Compilation within docker, and TogetherROS has been installed in the docker environment. For instructions on docker installation, cross-compilation, TogetherROS compilation, and deployment, please refer to the README.md in the robot development platform's robot_dev_config repo.
-- The dnn node package has been compiled.
-- The hbm_img_msgs package has been compiled (see Dependency section for compilation methods).
+## docker交叉编译
 
-2. Compilation
+1、编译环境确认
 
-- Compilation command:
+- 在docker中编译, 并且docker中已经安装好TogetherROS。docker安装、交叉编译说明、TogetherROS编译和部署说明详见机器人开发平台robot_dev_config repo中的README.md。
+- 已编译dnn node package
+- 已编译hbm_img_msgs package（编译方法见Dependency部分）
+
+2、编译
+
+- 编译命令：
 
   ```shell
   # RDK X5
@@ -82,124 +85,127 @@ hbm_img_msgs is a custom image message format used for image transmission in sha
   bash robot_dev_config/build.sh -p S100 -s mono_edgesam
 
   # RDK S600
-  bash robot_dev_config/build.sh -p S100 -s mono_edgesam
+  bash robot_dev_config/build.sh -p S600 -s mono_edgesam
   ```
 
-- Shared memory communication method is enabled by default in the compilation options.
+- 编译选项中默认打开了shared mem通信方式。
 
-## Notes
+## 注意事项
 
 
-# Instructions
+# 使用介绍
 
-## Dependencies
+## 依赖
 
-- mipi_cam package: Publishes image messages
-- usb_cam package: Publishes image messages
-- websocket package: Renders images and AI perception messages
+- mipi_cam package：发布图片msg
+- usb_cam package：发布图片msg
+- websocket package：渲染图片和ai感知msg
 
-## Parameters
+## 参数
 
-| Parameter Name      | Explanation                            | Mandatory            | Type | Default Value       |                                                                  |
-| ------------------- | -------------------------------------- | -------------------- | ------------------- |------------------------------------ |----------------------------------- |
-| cache_len_limit          | the length of the cached image buffer            | 否                   | int | 8                   |
-| feed_type           | Image source, 0: local; 1: subscribe   | No                   | int |0                   |
-| image               | Local image path                       | No        | string           | config/4.jpg     |
-| encoder_model_file_name               | encoder model file name                       | No        | string           | config/edgesam_encoder_1024.bin     |
-| decoder_model_file_name               | decoder model file name                       | No        | string           | config/edgesam_decoder_1024.bin     |
-| is_sync_mode  | 0: Synchronous Inference, 1: Asynchronous Inference        | 否                   | int | 0                   |                                                                         |
-| is_shared_mem_sub   | Subscribe to images using shared memory communication method | No  | int |0                   |
-| is_regular_box  | is use regular box | 否                   | int | 0                   |
-| is_padding_seg  | is padding segmetation result        | 否                   | int | 0                   |
-| dump_render_img     | Whether to render, 0: no; 1: yes       | No                   | int |0                   |
-| ai_msg_sub_topic_name | Topic name for subscribing ai msg to change detect box | No | string | /hobot_dnn_detection |
-| ai_msg_pub_topic_name | Topic name for publishing intelligent results for web display | No | string | /perception/segmentation/edgesam |
-| ros_img_sub_topic_name | Topic name for subscribing image msg | No | string | /image |
+| 参数名             | 解释                                  | 是否必须             | 数值类型 | 默认值                 |
+| ------------------ | ------------------------------------- | -------------------- | ------------------- | ----------------------------------------------------------------------- |
+| cache_len_limit          | 设置缓存的图片buffer长度            | 否                   | int | 8                   |                                                                         |
+| feed_type          | 图片来源, 0：本地；1：订阅            | 否                   | int | 0                   |                                                                         |
+| image              | 本地图片地址                          | 否                   | string | config/4.jpg     |                                                                         |
+| encoder_model_file_name              | 编码模型                          | 否                   | string | config/edgesam_encoder_1024.bin     |                                                                         |
+| decoder_model_file_name              | 解码模型                          | 否                   | string | config/edgesam_decoder_1024.bin     |                                                                         |
+| is_sync_mode  | 0: 同步推理, 1: 异步推理        | 否                   | int | 0                   |                                                                         |
+| is_shared_mem_sub  | 使用shared mem通信方式订阅图片        | 否                   | int | 0                   |                                                                         |
+| is_regular_box  | 使用固定检测框输入SAM        | 否                   | int | 0                   |                                                                         |
+| is_padding_seg  | 是否对分割结果padding适配双目图        | 否                   | int | 0                   |                                                                         |
+| box_x1/box_y1/box_x2/box_y2  | 手动设置SAM输入框坐标，坐标需对应模型输入尺寸，例如1024模型使用1024尺度坐标。四个值都有效时覆盖默认框。        | 否                   | double | -1                   |                                                                         |
+| dump_render_img    | 是否进行渲染，0：否；1：是            | 否                   | int | 0                   |                                                                         |
+| ai_msg_sub_topic_name | 订阅上游检测结果的topicname,用于SAM输入 | 否                   | string | /hobot_dnn_detection | |
+| ai_msg_pub_topic_name | 发布智能结果的topicname,用于web端展示 | 否                   | string | /perception/segmentation/edgesam | |
+| ros_img_sub_topic_name | 接收ros图片话题名 | 否                   | string | /image | |
 
-## Instructions
+## 使用说明
 
-- Topic control: mono_edgesam supports controlling detection boxes through ai msg topic messages, as an example:
-
+- 控制话题：mono_edgesam 支持通过ai msg话题消息获取目标检测框。使用示例：
 ```shell
 ros2 topic pub /hobot_dnn_detection ai_msgs/msg/PerceptionTargets '{"targets": [{"rois": [{"rect": {"x_offset": 96, "y_offset": 96, "width": 192, "height": 96}, "type": "anything"}]}] }'
 ```
 
-## Running
+## 运行
 
-## Running on RDK Ubuntu System
+- mono_edgesam 使用到的模型在安装包'config'路径下。
 
-Running method 1, use the executable file to start:
+- 编译成功后, 将生成的install路径拷贝到地平线RDK上（如果是在RDK上编译, 忽略拷贝步骤）, 并执行如下命令运行。
+
+## RDK Ubuntu系统上运行
+
+运行方式1, 使用可执行文件启动：
 ```shell
 export COLCON_CURRENT_PREFIX=./install
 source ./install/local_setup.bash
-# The config includes models used by the example and local images for filling
-# Copy based on the actual installation path (the installation path in the docker is install/lib/mono_edgesam/config/, the copy command is cp -r install/lib/mono_edgesam/config/ .).
+# config中为示例使用的模型, 回灌使用的本地图片
+# 根据实际安装路径进行拷贝（docker中的安装路径为install/lib/mono_edgesam/config/, 拷贝命令为cp -r install/lib/mono_edgesam/config/ .）。
 cp -r install/lib/mono_edgesam/config/ .
 
-# Run mode 1:Use local JPG format images for backflow prediction:
-
+# 运行模式1：
+# 使用本地jpg格式图片进行回灌预测
 ros2 run mono_edgesam mono_edgesam --ros-args -p feed_type:=0 -p image:=config/4.jpg -p image_type:=0 -p dump_render_img:=1
 
-# Run mode 2: Use shared memory communication method (topic name: /hbmem_img) to segmetation with regular box:
-
+# 运行模式2：使用shared mem通信方式(topic为/hbmem_img)进行预测,使用固定检测框进行SAM检测
 ros2 run mono_edgesam mono_edgesam --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p is_regular_box:=1 --ros-args --log-level warn
 
-# Run mode 3: Shared memory communication method (topic name: /hbmem_img), set the controlled topic name (topic name: /hobot_dnn_detection) to and set the log level to warn. At the same time, send a ai topic (topic name: /hobot_dnn_detection) in another window to change the detection box:
-
+# 运行模式3：
+# 使用shared mem通信方式(topic为/hbmem_img)进行预测, 设置ai订阅话题名(/hobot_dnn_detection)为并设置log级别为warn。同时在另一个窗口发送ai msg话题(topic为/hobot_dnn_detection) 变更检测框
 ros2 run mono_edgesam mono_edgesam --ros-args -p feed_type:=1 --ros-args --log-level warn -p ai_msg_sub_topic_name:="/hobot_dnn_detection"
 
 ros2 topic pub /hobot_dnn_detection ai_msgs/msg/PerceptionTargets '{"targets": [{"rois": [{"rect": {"x_offset": 96, "y_offset": 96, "width": 192, "height": 96}, "type": "anything"}]}] }'
+
 ```
 
-Running method 2, use a launch file:
-
+运行方式2, 使用launch文件启动：
 ```shell
 export COLCON_CURRENT_PREFIX=./install
 source ./install/setup.bash
-# Copy the configuration based on the actual installation path
+# config中为示例使用的模型, 根据实际安装路径进行拷贝
+# 如果是板端编译（无--merge-install编译选项）, 拷贝命令为cp -r install/PKG_NAME/lib/PKG_NAME/config/ ., 其中PKG_NAME为具体的package名。
 cp -r install/lib/mono_edgesam/config/ .
 
-# Configure MIPI camera
+# 配置MIPI摄像头
 export CAM_TYPE=mipi
 
-# Mode 1: Start the launch file, run sam node only.
+# 运行模式1：启动launch文件, 单独启动 sam 节点
 ros2 launch mono_edgesam sam.launch.py
 
-# Mode 2: Start the launch file, run sam node with yolo world node.
+# 运行模式2：启动launch文件, 启动检测节点 + sam节点
 ros2 launch mono_edgesam sam_with_dosod.launch.py
 ```
 
-## Run on Buildroot system:
+## Linux Buildroot 系统上运行
 
 ```shell
 export ROS_LOG_DIR=/userdata/
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:./install/lib/
 
-# Copy the configuration used by the example and the local image used for inference
+# config中为示例使用的模型, 回灌使用的本地图片
 cp -r install/lib/mono_edgesam/config/ .
 
-# Run mode 1:Use local JPG format images for backflow prediction:
-
+# 运行模式1：
+# 使用本地jpg格式图片进行回灌预测, 输入自定义类别
 ./install/lib/mono_edgesam/mono_edgesam --ros-args -p feed_type:=0 -p image:=config/4.jpg -p image_type:=0 -p dump_render_img:=1
 
-# Run mode 2: Use shared memory communication method (topic name: /hbmem_img) to segmetation with regular box:
-
+# 运行模式2：使用shared mem通信方式(topic为/hbmem_img)进行预测,使用固定检测框进行SAM检测
 ./install/lib/mono_edgesam/mono_edgesam --ros-args -p feed_type:=1 -p is_shared_mem_sub:=1 -p is_regular_box:=1 --ros-args --log-level warn
 
-# Run mode 3: Shared memory communication method (topic name: /hbmem_img), set the controlled topic name (topic name: /hobot_dnn_detection) to and set the log level to warn. At the same time, send a ai topic (topic name: /hobot_dnn_detection) in another window to change the detection box:
-
+# 运行模式3：
+# 使用订阅到的image msg(topic为/image)进行预测, 设置ai订阅话题名(/hobot_dnn_detection)为并设置log级别为warn。同时在另一个窗口发送ai msg话题(topic为/hobot_dnn_detection) 变更检测框
 ./install/lib/mono_edgesam/mono_edgesam --ros-args -p feed_type:=1 --ros-args --log-level warn -p ai_msg_sub_topic_name:="/hobot_dnn_detection"
 
 ros2 topic pub /hobot_dnn_detection ai_msgs/msg/PerceptionTargets '{"targets": [{"rois": [{"rect": {"x_offset": 96, "y_offset": 96, "width": 192, "height": 96}, "type": "anything"}]}] }'
 ```
 
-# Results Analysis
+# 结果分析
 
-## Results Display
+## X5结果展示
 
-log:
+log：
 
-Command executed: `ros2 run mono_edgesam mono_edgesam --ros-args -p feed_type:=0 -p image:=config/4.jpg -p dump_render_img:=1`
+运行命令：`ros2 run mono_edgesam mono_edgesam --ros-args -p feed_type:=0 -p image:=config/4.jpg -p dump_render_img:=1`
 
 ```shell
 [WARN] [1752828713.164111693] [mono_edgesam]: Parameter:
@@ -242,7 +248,7 @@ name: edgesam_decoder.
 [INFO] [1752828714.000021486] [sam ouput parser]: Draw result to file: render_sam_feedback_0_0.jpeg
 ```
 
-## Render img:
+## 渲染结果
 ![image](img/render_sam_feedback_0_0.jpeg)
 
-Note: Preprocessing Image involves scaling and padding.
+说明：前处理对图片进行缩放和补全处理。
