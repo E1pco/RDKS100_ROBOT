@@ -15,7 +15,7 @@ ExposureTime: 5000 # us
 # AutoExposureTimeLower: 100
 # AutoExposureTimeUpper: 20000
 
-image_scale: 0.5 # 1 0.5
+image_scale: 1 # 1 0.5
 GainAuto: 2 # Gain Auto, 0 stands for Off, 1 stands for Once, 2 stands for Continues
 Gain: 15 # min: 0   max: 17.0166
 Gamma: 0.7  # min: 0   max: 17.0166
