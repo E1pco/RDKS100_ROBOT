@@ -1,7 +1,7 @@
 %YAML:1.0
 ---
 # Camera Parameters
-SerialNumber: "DA2099368"
+SerialNumber: "DB0498485"
 TopicName: "left_camera/image"
 
 # 0: Off (free-run), 1: On (hardware trigger via LINE0)
