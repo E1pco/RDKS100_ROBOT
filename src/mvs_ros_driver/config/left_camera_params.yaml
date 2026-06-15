@@ -1,9 +1,0 @@
-/**:
-  ros__parameters:
-    # These parameters are loaded at startup and can be changed at runtime:
-    #   ros2 param set /left_camera exposure_time 8000
-    #   ros2 param set /left_camera gain 10.0
-    #   ros2 param set /left_camera gamma 1.0
-    exposure_time: 5000   # us, only effective when ExposureAutoMode=0 (Off)
-    gain: 15.0            # only effective when GainAuto=0 (Off)
-    gamma: 0.7

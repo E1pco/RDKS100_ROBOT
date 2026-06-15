@@ -21,6 +21,7 @@ from typing import Optional
 
 import rclpy
 from rclpy.node import Node
+from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.parameter import Parameter
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
@@ -48,11 +49,9 @@ class AckermannSerialBridgeNode(Node):
     """ROS2 ↔  Ackermann chassis serial bridge."""
 
     def __init__(self) -> None:
-        super().__init__(
-            "ackermann_serial_bridge",
-            # Allow parallel timer callbacks to avoid starvation
-            callback_group=rclpy.callback_groups.ReentrantCallbackGroup(),
-        )
+        super().__init__("ackermann_serial_bridge")
+        # Allow parallel timer callbacks to avoid serial read/write starvation.
+        self._callback_group = ReentrantCallbackGroup()
 
         # ------------------------------------------------------------------
         # Declare & read parameters
@@ -104,7 +103,11 @@ class AckermannSerialBridgeNode(Node):
         )
 
         self._cmd_sub = self.create_subscription(
-            Twist, "/cmd_vel", self._cmd_vel_cb, 10
+            Twist,
+            "/cmd_vel",
+            self._cmd_vel_cb,
+            10,
+            callback_group=self._callback_group,
         )
 
         self._tf_broadcaster: Optional[TransformBroadcaster] = None
@@ -147,12 +150,24 @@ class AckermannSerialBridgeNode(Node):
         # Timers
         # ------------------------------------------------------------------
         read_period = 1.0 / max(self._read_rate, 1.0)
-        self._read_timer = self.create_timer(read_period, self._read_serial_cb)
+        self._read_timer = self.create_timer(
+            read_period,
+            self._read_serial_cb,
+            callback_group=self._callback_group,
+        )
 
         cmd_period = 1.0 / max(self._cmd_send_rate, 1.0)
-        self._cmd_timer = self.create_timer(cmd_period, self._send_cmd_cb)
+        self._cmd_timer = self.create_timer(
+            cmd_period,
+            self._send_cmd_cb,
+            callback_group=self._callback_group,
+        )
 
-        self._diag_timer = self.create_timer(1.0, self._publish_diagnostics_cb)
+        self._diag_timer = self.create_timer(
+            1.0,
+            self._publish_diagnostics_cb,
+            callback_group=self._callback_group,
+        )
 
         self.get_logger().info(
             f"AckermannSerialBridge started: port={self._port} "

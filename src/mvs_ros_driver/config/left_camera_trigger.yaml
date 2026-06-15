@@ -8,7 +8,7 @@ TopicName: "left_camera/image"
 TriggerEnable: 1
 
 # 0: Off, 1: Once, 2: Continues
-ExposureAutoMode: 0
+ExposureAutoMode: 2
 ExposureTime: 15000
 
 image_scale: 0.5
