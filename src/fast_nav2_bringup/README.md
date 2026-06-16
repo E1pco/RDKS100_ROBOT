@@ -32,6 +32,20 @@ ros2 launch fast_nav2_bringup nav2.launch.py \
 
 This also starts RViz by default. Disable it with `use_rviz:=false`.
 
+## Start Navigation With FAST-LIVO Localization
+
+Use this mode when FAST-LIVO2 is running and publishing
+`camera_init -> aft_mapped`. It does not start AMCL and does not require an
+initial pose in RViz.
+
+```bash
+ros2 launch fast_nav2_bringup fastlivo_nav2.launch.py
+```
+
+This mode uses `camera_init` as the Nav2 global frame, publishes an identity
+`aft_mapped -> base_link` transform, uses Smac Hybrid-A* for global planning,
+and uses Regulated Pure Pursuit for path tracking.
+
 ## Convert FAST-LIVO2 PCD
 
 The generated map in `maps/fastlivo_2d.yaml` was created without rotating the
