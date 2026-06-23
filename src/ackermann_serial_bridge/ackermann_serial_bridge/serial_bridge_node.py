@@ -69,6 +69,11 @@ class AckermannSerialBridgeNode(Node):
         self.declare_parameter("frame_id", "odom")
         self.declare_parameter("base_frame_id", "base_link")
 
+        # Republish mode: subscribe to input_topic and forward at cmd_send_rate
+        self.declare_parameter("republish", False)
+        self.declare_parameter("input_topic", "/cmd_vel_in")
+        self.declare_parameter("republish_timeout", 2.0)
+
         self._port: str = self.get_parameter("port").value
         self._baudrate: int = self.get_parameter("baudrate").value
         self._cmd_send_rate: float = self.get_parameter("cmd_send_rate").value
@@ -81,6 +86,10 @@ class AckermannSerialBridgeNode(Node):
         self._publish_tf: bool = self.get_parameter("publish_tf").value
         self._frame_id: str = self.get_parameter("frame_id").value
         self._base_frame_id: str = self.get_parameter("base_frame_id").value
+
+        self._republish: bool = self.get_parameter("republish").value
+        self._input_topic: str = self.get_parameter("input_topic").value
+        self._republish_timeout: float = self.get_parameter("republish_timeout").value
 
         # ------------------------------------------------------------------
         # ROS  publishers / subscribers
@@ -102,13 +111,25 @@ class AckermannSerialBridgeNode(Node):
             DiagnosticArray, "/diagnostics", 10
         )
 
-        self._cmd_sub = self.create_subscription(
-            Twist,
-            "/cmd_vel",
-            self._cmd_vel_cb,
-            10,
-            callback_group=self._callback_group,
-        )
+        if self._republish:
+            # Republish mode: subscribe to input_topic, forward at cmd_send_rate
+            self._cmd_sub = self.create_subscription(
+                Twist,
+                self._input_topic,
+                self._cmd_vel_cb,
+                10,
+                callback_group=self._callback_group,
+            )
+            # Override command_timeout with republish_timeout
+            self._command_timeout = self._republish_timeout
+        else:
+            self._cmd_sub = self.create_subscription(
+                Twist,
+                "/cmd_vel",
+                self._cmd_vel_cb,
+                10,
+                callback_group=self._callback_group,
+            )
 
         self._tf_broadcaster: Optional[TransformBroadcaster] = None
         if self._publish_tf:
@@ -133,6 +154,9 @@ class AckermannSerialBridgeNode(Node):
         # Last received cmd_vel and timestamp
         self._last_cmd: Optional[Twist] = None
         self._last_cmd_time: float = 0.0
+        self._last_cmd_log_time: float = 0.0
+        self._last_tx_log_time: float = 0.0
+        self._last_motor_off_warn_time: float = 0.0
 
         # Diagnostics
         self._rx_count = 0
@@ -172,6 +196,9 @@ class AckermannSerialBridgeNode(Node):
         self.get_logger().info(
             f"AckermannSerialBridge started: port={self._port} "
             f"baud={self._baudrate} yaw_sign={self._yaw_sign}"
+            + (f" republish={self._input_topic}@{self._cmd_send_rate}Hz"
+               f" timeout={self._republish_timeout}s"
+               if self._republish else "")
         )
 
     # ==================================================================
@@ -356,6 +383,14 @@ class AckermannSerialBridgeNode(Node):
         """Subscriber callback for /cmd_vel."""
         self._last_cmd = msg
         self._last_cmd_time = time.monotonic()
+        if abs(msg.linear.x) > 1e-3 or abs(msg.angular.z) > 1e-3:
+            now = time.monotonic()
+            if now - self._last_cmd_log_time > 1.0:
+                self._last_cmd_log_time = now
+                self.get_logger().info(
+                    f"Received /cmd_vel: linear.x={msg.linear.x:+.3f} m/s, "
+                    f"angular.z={msg.angular.z:+.3f} rad/s"
+                )
 
     def _send_cmd_cb(self) -> None:
         """Timer callback: send a downlink velocity frame."""
@@ -380,6 +415,17 @@ class AckermannSerialBridgeNode(Node):
         angular_z = max(-self._max_angular_speed,
                         min(self._max_angular_speed, cmd.angular.z))
 
+        if (
+            (abs(linear_x) > 1e-3 or abs(angular_z) > 1e-3)
+            and not self._motor_enabled
+            and now - self._last_motor_off_warn_time > 2.0
+        ):
+            self._last_motor_off_warn_time = now
+            self.get_logger().warn(
+                "Non-zero /cmd_vel is being sent, but chassis reports motor=OFF. "
+                "Check motor enable, emergency stop, chassis power, and battery."
+            )
+
         # Convert to protocol units
         #   yaw_sign maps ROS angular convention → chassis serial convention:
         #     serial_wz = yaw_sign * ros_wz
@@ -393,6 +439,15 @@ class AckermannSerialBridgeNode(Node):
             written = self._ser.write(frame)
             if written == DOWNLINK_FRAME_LEN:
                 self._tx_count += 1
+                if (
+                    (abs(linear_x) > 1e-3 or abs(angular_z) > 1e-3)
+                    and now - self._last_tx_log_time > 1.0
+                ):
+                    self._last_tx_log_time = now
+                    self.get_logger().info(
+                        f"Sent serial cmd: x={x_mm_s:+d} mm/s, "
+                        f"z={z_mrad_s:+d} mrad/s, frame={frame.hex()}"
+                    )
             else:
                 self.get_logger().warn(
                     f"Serial write incomplete: {written}/{DOWNLINK_FRAME_LEN} bytes"

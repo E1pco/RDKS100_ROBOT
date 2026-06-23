@@ -20,4 +20,6 @@ Gamma: 0.7
 GammaSelector: 1
 
 # 0: RGB8, 1: BayerRG8, 2: BayerRG12Packed, 3: BayerGB12Packed, 4: BayerGB8
-PixelFormat: 0
+# Use BayerRG8 on the camera link to keep GigE bandwidth low enough for 10 fps.
+# The driver still converts the received frame to rgb8 before publishing.
+PixelFormat: 1

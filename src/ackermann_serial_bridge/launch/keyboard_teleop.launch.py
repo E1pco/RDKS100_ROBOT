@@ -1,4 +1,4 @@
-"""Launch file for the cmd_vel republisher node."""
+"""Launch file for the keyboard teleop node."""
 
 import os
 
@@ -11,18 +11,18 @@ from launch_ros.actions import Node
 
 def generate_launch_description() -> LaunchDescription:
     pkg_share = get_package_share_directory("ackermann_serial_bridge")
-    default_config = os.path.join(pkg_share, "config", "cmd_vel_republisher.yaml")
+    default_config = os.path.join(pkg_share, "config", "keyboard_teleop.yaml")
 
     config_arg = DeclareLaunchArgument(
         "config",
         default_value=default_config,
-        description="Path to the republisher parameter YAML file",
+        description="Path to the keyboard teleop parameter YAML file",
     )
 
-    republisher_node = Node(
+    teleop_node = Node(
         package="ackermann_serial_bridge",
-        executable="cmd_vel_republisher",
-        name="cmd_vel_republisher",
+        executable="keyboard_teleop",
+        name="keyboard_teleop",
         output="screen",
         parameters=[
             LaunchConfiguration("config"),
@@ -31,5 +31,5 @@ def generate_launch_description() -> LaunchDescription:
 
     return LaunchDescription([
         config_arg,
-        republisher_node,
+        teleop_node,
     ])

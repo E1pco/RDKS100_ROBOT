@@ -5,7 +5,7 @@ ackermann_serial_bridge:
     baudrate: 115200
 
     # Send / receive rates (Hz)
-    cmd_send_rate: 100.0
+    cmd_send_rate: 5.0
     read_rate: 100.0
 
     # Command timeout: if no /cmd_vel received within this many seconds,
@@ -19,11 +19,18 @@ ackermann_serial_bridge:
     # Yaw sign convention:
     #   ros_wz   = yaw_sign * serial_wz   (uplink / odometry)
     #   serial_wz = yaw_sign * ros_wz     (downlink / cmd_vel)
-    # Default -1.0 means chassis Z-axis is opposite to ROS CCW-positive.
-    yaw_sign: -1.0
+    # Use 1.0 when positive ROS angular.z should turn the chassis left.
+    yaw_sign: 1.0
 
     # Odometry
     publish_odom: true
     publish_tf: false
     frame_id: "odom"
     base_frame_id: "base_link"
+
+    # Republish mode (optional):
+    # When enabled, subscribes to input_topic instead of /cmd_vel,
+    # and forwards at cmd_send_rate with timeout-based zero-velocity.
+    republish: false
+    input_topic: "/cmd_vel_in"
+    republish_timeout: 2.0

@@ -133,6 +133,12 @@ install(
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
+# Install Python scripts
+install(PROGRAMS
+  scripts/image_folder_publisher.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 install(DIRECTORY
   ${PROJECT_SOURCE_DIR}/config/${PREFIX_PATH}/
   DESTINATION lib/${PROJECT_NAME}/config/

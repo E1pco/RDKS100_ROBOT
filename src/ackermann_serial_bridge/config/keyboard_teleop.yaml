@@ -1,0 +1,15 @@
+keyboard_teleop:
+  ros__parameters:
+    # Publish topic (set to "/cmd_vel_in" when using republish mode)
+    topic: "/cmd_vel"
+
+    # Speed limits
+    max_speed: 1       # m/s
+    max_steer: 1.0       # rad
+
+    # Increment per keypress
+    speed_step: 0.05      # m/s
+    steer_step: 0.05      # rad
+
+    # Publish rate (Hz)
+    publish_rate: 20.0

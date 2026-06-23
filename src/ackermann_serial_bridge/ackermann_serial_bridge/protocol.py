@@ -231,7 +231,7 @@ if __name__ == "__main__":
     import serial
     ser = serial.Serial("/dev/ttyACM0", 115200, timeout=1)
     # Build a downlink frame
-    downlink = build_downlink_frame(x_mm_s=100, z_mrad_s=0)
+    downlink = build_downlink_frame(x_mm_s=100, y_mm_s=0, z_mrad_s=0)
     print("Downlink frame:", downlink.hex())
     ser.write(downlink)
 

@@ -26,7 +26,7 @@ def extract_image_from_bag(bag_path, image_topic, output_path):
 if __name__ == '__main__':
     rclpy.init()
     extract_image_from_bag(
-        bag_path='/home/sunrise/fast_ws/src/FAST-Calib2/calib_data/scene_3/scene_3_0.db3',
+        bag_path='/home/sunrise/fast_ws/src/FAST-Calib2/calib_data/scene_2/scene_2_0.db3',
         image_topic='/left_camera/image',
         output_path='/home/sunrise/fast_ws/src/FAST-Calib2/img/image.png'
     )

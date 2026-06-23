@@ -1,14 +1,14 @@
 /**:
   ros__parameters:
     # 相机内参（替换为您的标定结果）
-    fx: 1427.315330
-    fy: 1426.415597
-    cx: 625.152823
-    cy: 481.713953
-    k1: -0.331466
-    k2: 0.162245
-    p1: -0.002049
-    p2: -0.001517
+    fx: 1148.486226
+    fy: 1137.963234
+    cx: 721.321631
+    cy: 477.389161
+    k1: -0.008893
+    k2: -0.047723
+    p1: -0.008742
+    p2: 0.027489
 
     marker_size: 0.20           # ArUco 标记尺寸（米）
     delta_width_qr_center: 0.55 # 标记中心水平距离的一半
@@ -21,21 +21,21 @@
     board_height: 1.0           # 标定板高度
     use_auto_lidar_roi: false
   
-    x_min: 2.4
-    x_max: 3.2
-    y_min: -1.0
-    y_max: 0.8
-    z_min: 1.0
-    z_max: 2.4
-    
+    x_min: 1.8
+    x_max: 2.5
+    y_min: -0.9
+    y_max: 0.9
+    z_min: 0.8
+    z_max: 2.1
+
     # LiDAR topic
     lidar_topic: "/livox/lidar"
 
     # 数据路径
     # bag_path: 包含 LiDAR 点云的 rosbag 文件路径
-    bag_path: "/home/sunrise/fast_ws/src/FAST-Calib2/calib_data/scene_3/scene_3_0.db3"
+    bag_path: "/home/sunrise/fast_ws/src/FAST-Calib2/calib_data/scene_2/scene_2_0.db3"
     # image_path: 标定板图像文件路径（PNG/BMP/JPG），从 rosbag 中提取或单独保存
     image_path: "/home/sunrise/fast_ws/src/FAST-Calib2/img/image.png"
 
     # 输出路径
-    output_path: "/home/sunrise/fast_ws/src/FAST-Calib2/output/"
+    output_path: "/home/sunrise/fast_ws/src/FAST-Calib2/output/scene_2"
