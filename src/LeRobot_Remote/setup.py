@@ -23,6 +23,7 @@ setup(
         'console_scripts': [
             'leader_node = LeRobot_Remote.leader_node:main',
             'follower_node = LeRobot_Remote.follower_node:main',
+            'camera_node = LeRobot_Remote.camera_node:main',
         ],
     },
 )
