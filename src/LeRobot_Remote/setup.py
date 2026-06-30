@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-package_name = 'ROS2_Remote'
+package_name = 'LeRobot_Remote'
 
 setup(
     name=package_name,
@@ -21,8 +21,8 @@ setup(
     license='MIT',
     entry_points={
         'console_scripts': [
-            'leader_node = ROS2_Remote.leader_node:main',
-            'follower_node = ROS2_Remote.follower_node:main',
+            'leader_node = LeRobot_Remote.leader_node:main',
+            'follower_node = LeRobot_Remote.follower_node:main',
         ],
     },
 )
