@@ -1,0 +1,5 @@
+# 机械臂 - CH340 (1a86:55d3, serial: 5A7C118852)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", ATTRS{serial}=="5A7C118852", MODE="0666", SYMLINK+="arm"
+
+# 底盘 - CH340 (1a86:55d4, serial: 0002)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", ATTRS{serial}=="0002", MODE="0666", SYMLINK+="chassis"

@@ -18,6 +18,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.actions import IncludeLaunchDescription
 from launch_ros.actions import Node
+from launch.conditions import IfCondition
 from launch.substitutions import TextSubstitution
 from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -42,23 +43,29 @@ def generate_launch_description():
 
     # args that can be set from the command line or a default will be used
     image_width_launch_arg = DeclareLaunchArgument(
-        "sam_image_width", default_value=TextSubstitution(text="1920")
+        "sam_image_width", default_value=TextSubstitution(text="640")
     )
     image_height_launch_arg = DeclareLaunchArgument(
-        "sam_image_height", default_value=TextSubstitution(text="1080")
+        "sam_image_height", default_value=TextSubstitution(text="480")
     )
     msg_pub_topic_name_launch_arg = DeclareLaunchArgument(
         "sam_msg_pub_topic_name", default_value=TextSubstitution(text="/perception/segmentation/edgesam")
     )
     ros_img_sub_topic_launch_arg = DeclareLaunchArgument(
-        "sam_ros_img_sub_topic_name", default_value=TextSubstitution(text="/left_camera/image")
+        "sam_ros_img_sub_topic_name", default_value=TextSubstitution(text="/camera/image_raw")
     )
-    websocket_image_topic_default = "/image_mjpeg/image" if os.getenv('CAM_TYPE') == "ros" else "/image"
+    websocket_image_topic_default = "/segmentation/image_jpeg" if os.getenv('CAM_TYPE') == "ros" else "/image"
     websocket_image_topic_launch_arg = DeclareLaunchArgument(
         "sam_websocket_image_topic", default_value=TextSubstitution(text=websocket_image_topic_default)
     )
+    websocket_output_fps_launch_arg = DeclareLaunchArgument(
+        "sam_websocket_output_fps", default_value=TextSubstitution(text="10")
+    )
     codec_in_format_launch_arg = DeclareLaunchArgument(
         "sam_codec_in_format", default_value=TextSubstitution(text="bgr8")
+    )
+    sam_enable_web_codec_launch_arg = DeclareLaunchArgument(
+        "sam_enable_web_codec", default_value=TextSubstitution(text="true")
     )
     sam_cache_len_limit_launch_arg = DeclareLaunchArgument(
         "sam_cache_len_limit", default_value=TextSubstitution(text="1")
@@ -80,7 +87,7 @@ def generate_launch_description():
         "dosod_score_threshold", default_value=TextSubstitution(text="0.3")
     )
     target_classes_launch_arg = DeclareLaunchArgument(
-        "dosod_target_classes", default_value=TextSubstitution(text="cup")
+        "dosod_target_classes", default_value=TextSubstitution(text="")
     )
     sam_dump_render_launch_arg = DeclareLaunchArgument(
         "sam_dump_render_img", default_value=TextSubstitution(text="0")
@@ -224,7 +231,8 @@ def generate_launch_description():
         launch_arguments={
             'websocket_image_topic': LaunchConfiguration("sam_websocket_image_topic"),
             'websocket_image_type': 'mjpeg',
-            'websocket_smart_topic': LaunchConfiguration("sam_msg_pub_topic_name")
+            'websocket_smart_topic': LaunchConfiguration("sam_msg_pub_topic_name"),
+            'websocket_output_fps': LaunchConfiguration("sam_websocket_output_fps")
         }.items()
     )
 
@@ -233,6 +241,7 @@ def generate_launch_description():
             os.path.join(
                 get_package_share_directory('hobot_codec'),
                 'launch/hobot_codec_encode.launch.py')),
+        condition=IfCondition(LaunchConfiguration("sam_enable_web_codec")),
         launch_arguments={
             'codec_in_mode': 'ros',
             'codec_in_format': LaunchConfiguration("sam_codec_in_format"),
@@ -262,7 +271,7 @@ def generate_launch_description():
                 "sam_dump_render_img")},
             {"dump_render_path": LaunchConfiguration(
                 "sam_dump_render_path")},
-            {"ai_msg_sub_topic_name": "/hobot_dnn_detection"},
+            {"ai_msg_sub_topic_name": "/hobot_dnn_detection_filtered"},
             {"encoder_model_file_name": [basic_path, "/", LaunchConfiguration(
                 "sam_encoder_model_file_name")]},
             {"decoder_model_file_name": [basic_path, "/", LaunchConfiguration(
@@ -270,7 +279,19 @@ def generate_launch_description():
             {"ai_msg_pub_topic_name": LaunchConfiguration(
                 "sam_msg_pub_topic_name")}
         ],
-        arguments=['--ros-args', '--log-level', 'warn']
+        arguments=['--ros-args', '--log-level', 'error']
+    )
+
+    dosod_filter_node = Node(
+        package='arm',
+        executable='dosod_filter_node',
+        output='screen',
+        parameters=[
+            {"input_topic": "/hobot_dnn_detection"},
+            {"output_topic": "/hobot_dnn_detection_filtered"},
+            {"selected_classes_topic": "/dosod/selected_classes"},
+            {"default_classes": ["cup"]}
+        ]
     )
 
     # 算法pkg
@@ -315,7 +336,9 @@ def generate_launch_description():
             msg_pub_topic_name_launch_arg,
             ros_img_sub_topic_launch_arg,
             websocket_image_topic_launch_arg,
+            websocket_output_fps_launch_arg,
             codec_in_format_launch_arg,
+            sam_enable_web_codec_launch_arg,
             sam_cache_len_limit_launch_arg,
             sam_max_rois_launch_arg,
             model_file_name_launch_arg,
@@ -328,6 +351,8 @@ def generate_launch_description():
             decoder_model_file_name_launch_arg,
             # 外部ROS图像编码给websocket显示
             ros_jpeg_codec_node,
+            # 过滤DOSOD类别给SAM
+            dosod_filter_node,
             # 启动sam pkg
             sam_node,
             # 启动dosod pkg
@@ -344,7 +369,9 @@ def generate_launch_description():
             msg_pub_topic_name_launch_arg,
             ros_img_sub_topic_launch_arg,
             websocket_image_topic_launch_arg,
+            websocket_output_fps_launch_arg,
             codec_in_format_launch_arg,
+            sam_enable_web_codec_launch_arg,
             sam_cache_len_limit_launch_arg,
             sam_max_rois_launch_arg,
             model_file_name_launch_arg,
@@ -361,6 +388,8 @@ def generate_launch_description():
             cam_node,
             # 图片编解码&发布pkg
             jpeg_codec_node,
+            # 过滤DOSOD类别给SAM
+            dosod_filter_node,
             # 启动sam pkg
             sam_node,
             # 启动dosod pkg
@@ -376,7 +405,9 @@ def generate_launch_description():
             msg_pub_topic_name_launch_arg,
             ros_img_sub_topic_launch_arg,
             websocket_image_topic_launch_arg,
+            websocket_output_fps_launch_arg,
             codec_in_format_launch_arg,
+            sam_enable_web_codec_launch_arg,
             sam_cache_len_limit_launch_arg,
             sam_max_rois_launch_arg,
             model_file_name_launch_arg,
@@ -393,6 +424,8 @@ def generate_launch_description():
             cam_node,
             # 图片编解码&发布pkg
             nv12_codec_node,
+            # 过滤DOSOD类别给SAM
+            dosod_filter_node,
             # 启动sam pkg
             sam_node,
             # 启动dosod pkg

@@ -89,3 +89,25 @@ ros2 launch fast_nav2_bringup pointcloud_to_scan.launch.py \
   convert_custom:=false \
   cloud_topic:=/livox/lidar
 ```
+
+## Build A Semantic Map
+
+Run FAST-LIVO2 and the S100 perception stack first, then start the semantic map
+builder:
+
+```bash
+ros2 launch fast_nav2_bringup semantic_map_builder.launch.py
+```
+
+The node consumes `/cloud_registered` and `/perception/segmentation/edgesam`,
+projects FAST-LIVO points into the current image using the configured camera
+intrinsics and `Rcl/Pcl`, and writes a sparse semantic voxel map to
+`maps/semantic_map.json`. It also publishes `/semantic_map/cloud` and
+`/semantic_map/markers` for RViz.
+
+If only DOSOD detection boxes are running, override the semantic topic:
+
+```bash
+ros2 launch fast_nav2_bringup semantic_map_builder.launch.py \
+  semantic_topic:=/perception/detection/dosod
+```

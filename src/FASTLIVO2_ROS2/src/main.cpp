@@ -8,8 +8,9 @@ int main(int argc, char **argv)
   options.automatically_declare_parameters_from_overrides(true);
 
   rclcpp::Node::SharedPtr nh;
-  image_transport::ImageTransport it_(nh);
   LIVMapper mapper(nh, "laserMapping", options);
+  nh = mapper.node;
+  image_transport::ImageTransport it_(nh);
   mapper.initializeSubscribersAndPublishers(nh, it_);
   mapper.run(nh);
   rclcpp::shutdown();

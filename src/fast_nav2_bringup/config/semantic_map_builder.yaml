@@ -1,0 +1,48 @@
+semantic_map_builder:
+  ros__parameters:
+    pointcloud_topic: "/cloud_registered"
+    semantic_topic: "/perception/segmentation/edgesam"
+    semantic_cloud_topic: "/semantic_map/cloud"
+    semantic_marker_topic: "/semantic_map/markers"
+
+    global_frame: "camera_init"
+    lidar_frame: "aft_mapped"
+    use_latest_tf: true
+    tf_timeout_sec: 0.05
+    max_sync_age_sec: 0.5
+
+    camera:
+      width: 1224
+      height: 1024
+      fx: 1148.49
+      fy: 1137.96
+      cx: 721.322
+      cy: 477.389
+      Rcl: [-0.091827, -0.994703, -0.046197,
+             0.433230,  0.001864, -0.901281,
+             0.896593, -0.102776,  0.430764]
+      Pcl: [-0.056560, -0.136283, -0.083827]
+
+    voxel_size: 0.10
+    min_depth: 0.3
+    max_depth: 12.0
+    point_stride: 2
+    max_points_per_frame: 50000
+
+    min_detection_confidence: 0.25
+    min_voxel_observations: 2
+    min_voxel_confidence: 0.55
+    max_voxels: 200000
+    max_voxel_age_sec: 0.0
+
+    publish_rate: 1.0
+    publish_max_voxels: 50000
+    save_interval_sec: 10.0
+    save_path: "/home/sunrise/fast_ws/src/fast_nav2_bringup/maps/semantic_map.json"
+    save_max_voxels: 100000
+
+    # Empty means accept every detector class after confidence filtering.
+    target_classes: ["chair", "couch", "dining table", "tv", "laptop", "bottle", "cup", "book"]
+
+    dynamic_classes: ["person", "bicycle", "car", "motorcycle", "bus", "truck", "dog", "cat"]
+    store_dynamic_classes: false

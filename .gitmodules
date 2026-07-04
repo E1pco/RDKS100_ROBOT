@@ -1,0 +1,7 @@
+[submodule "src/hobot_dosod"]
+	path = src/hobot_dosod
+	url = ./src/hobot_dosod
+
+[submodule "src/my_robot_controller"]
+	path = src/my_robot_controller
+	url = ./src/my_robot_controller

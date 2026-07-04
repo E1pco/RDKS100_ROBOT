@@ -3,7 +3,7 @@
 
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, SetEnvironmentVariable
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from ament_index_python.packages import get_package_share_directory
@@ -61,6 +61,10 @@ def generate_launch_description():
         rviz_config_arg,
         camera_config_arg,
         use_respawn_arg,
+        SetEnvironmentVariable(
+            name="LD_PRELOAD",
+            value="/lib/x86_64-linux-gnu/libusb-1.0.so.0",
+        ),
 
         # play ros2 bag
         # ExecuteProcess(

@@ -10,6 +10,7 @@ install(DIRECTORY config launch maps rviz scripts
 install(PROGRAMS
   scripts/livox_custom_to_pointcloud2.py
   scripts/pcd_to_occupancy_map.py
+  scripts/semantic_map_builder.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

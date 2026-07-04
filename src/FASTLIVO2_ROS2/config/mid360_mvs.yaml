@@ -16,10 +16,10 @@
                     0.0, 0.0, 1.0]
 
       # FAST-Calib2 result: T_cam_lidar, used by FAST-LIVO2 as p_cam = Rcl * p_lidar + Pcl.
-      Rcl: [ -0.091827, -0.994703, -0.046197,
-              0.433230,  0.001864, -0.901281,
-              0.896593, -0.102776,  0.430764]
-      Pcl: [ -0.056560, -0.136283, -0.083827]
+      Rcl: [ -0.038462, -0.999155, -0.014483,
+            0.406987, -0.002426, -0.913431,
+            0.912624, -0.041027,  0.406736]
+      Pcl: [  0.001460, -0.124039,  0.000571]
 
     time_offset:
       imu_time_offset: 0.0
@@ -27,14 +27,14 @@
       exposure_time_init: 0.0
 
     preprocess:
-      point_filter_num: 1
-      filter_size_surf: 0.1
+      point_filter_num: 2
+      filter_size_surf: 0.15
       lidar_type: 1
       scan_line: 4
       blind: 0.5
 
     vio:
-      max_iterations: 5
+      max_iterations: 3
       outlier_threshold: 1000
       img_point_cov: 1000
       patch_size: 8
@@ -54,7 +54,7 @@
       b_gyr_cov: 0.0001
 
     lio:
-      max_iterations: 5
+      max_iterations: 3
       dept_err: 0.02
       beam_err: 0.05
       min_eigen_value: 0.005
@@ -64,8 +64,8 @@
       layer_init_num: [5, 5, 5, 5, 5]
 
     local_map:
-      map_sliding_en: false
-      half_map_size: 100
+      map_sliding_en: true
+      half_map_size: 40
       sliding_thresh: 8.0
 
     uav:
@@ -73,25 +73,25 @@
       gravity_align_en: false
 
     publish:
-      dense_map_en: true
+      dense_map_en: false
       pub_effect_point_en: false
       pub_plane_en: false
-      pub_scan_num: 1
+      pub_scan_num: 3
       blind_rgb_points: 0.0
 
     visualization:
-      publish_every_n_frames: 1
+      publish_every_n_frames: 3
       dense_map_en: false
-      voxel_size: 0.0
-      max_points: 300000
-      publish_rate: 10.0
+      voxel_size: 0.2
+      max_points: 50000
+      publish_rate: 2.0
 
     evo:
       seq_name: "mid360_mvs"
       pose_output_en: false
 
     pcd_save:
-      pcd_save_en: true
+      pcd_save_en: false
       colmap_output_en: false
-      filter_size_pcd: 0.1
-      interval: -1
+      filter_size_pcd: 0.2
+      interval: 30
