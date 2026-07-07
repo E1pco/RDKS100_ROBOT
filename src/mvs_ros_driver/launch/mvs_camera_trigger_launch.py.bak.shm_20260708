@@ -3,7 +3,7 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, SetEnvironmentVariable
+from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -18,20 +18,13 @@ def generate_launch_description():
         description="Path to camera YAML config (OpenCV FileStorage format)",
     )
 
-    shm_env_actions = [
-        SetEnvironmentVariable("RMW_IMPLEMENTATION", "rmw_fastrtps_cpp"),
-        SetEnvironmentVariable("FASTRTPS_DEFAULT_PROFILES_FILE", "/opt/tros/humble/lib/hobot_shm/config/shm_fastdds.xml"),
-        SetEnvironmentVariable("RMW_FASTRTPS_USE_QOS_FROM_XML", "1"),
-        SetEnvironmentVariable("ROS_DISABLE_LOANED_MESSAGES", "0"),
-    ]
-
     camera_node = Node(
         package="mvs_ros_driver",
         executable="grabImgWithTrigger",
         name="mvs_camera_trigger",
         output="screen",
         arguments=[LaunchConfiguration("config")],
-        respawn=False,
+        respawn=True,
     )
 
-    return LaunchDescription(shm_env_actions + [config_arg, camera_node])
+    return LaunchDescription([config_arg, camera_node])

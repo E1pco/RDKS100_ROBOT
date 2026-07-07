@@ -1,0 +1,248 @@
+{
+  "camera_name": "left_camera",
+  "image_width": 1216,
+  "image_height": 1024,
+  "board": {
+    "type": "checkerboard",
+    "squares_x": 7,
+    "squares_y": 10,
+    "detected_inner_corners": [
+      7,
+      10
+    ],
+    "square_size_mm": 23.0,
+    "marker_size_mm": null,
+    "dictionary": null
+  },
+  "sample_count": 40,
+  "rms_reprojection_error": 0.12521200615925138,
+  "mean_view_error_px": 0.11105440262511916,
+  "max_view_error_px": 0.28696942145909704,
+  "camera_matrix": [
+    [
+      1144.401647938253,
+      0.0,
+      589.0314703229426
+    ],
+    [
+      0.0,
+      1152.4549379192058,
+      500.19978721259764
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "distortion_model": "plumb_bob",
+  "distortion_coefficients": [
+    -0.06923715043387098,
+    0.06288388950120129,
+    -0.0028459418760914154,
+    -0.0014117905614482072,
+    0.029955431924698538
+  ],
+  "samples": [
+    {
+      "image": "ros_frame_0047",
+      "corners": 70,
+      "view_error_px": 0.05435525973919995
+    },
+    {
+      "image": "ros_frame_0319",
+      "corners": 70,
+      "view_error_px": 0.05571556385791566
+    },
+    {
+      "image": "ros_frame_0337",
+      "corners": 70,
+      "view_error_px": 0.050523748007094506
+    },
+    {
+      "image": "ros_frame_0384",
+      "corners": 70,
+      "view_error_px": 0.05506610458984606
+    },
+    {
+      "image": "ros_frame_0402",
+      "corners": 70,
+      "view_error_px": 0.0789007385951384
+    },
+    {
+      "image": "ros_frame_0421",
+      "corners": 70,
+      "view_error_px": 0.16875934713705112
+    },
+    {
+      "image": "ros_frame_0440",
+      "corners": 70,
+      "view_error_px": 0.16665467211301901
+    },
+    {
+      "image": "ros_frame_0458",
+      "corners": 70,
+      "view_error_px": 0.12255243536686082
+    },
+    {
+      "image": "ros_frame_0477",
+      "corners": 70,
+      "view_error_px": 0.1260618679307181
+    },
+    {
+      "image": "ros_frame_0498",
+      "corners": 70,
+      "view_error_px": 0.15208827700141495
+    },
+    {
+      "image": "ros_frame_0516",
+      "corners": 70,
+      "view_error_px": 0.10438200415255924
+    },
+    {
+      "image": "ros_frame_0543",
+      "corners": 70,
+      "view_error_px": 0.14774792199581696
+    },
+    {
+      "image": "ros_frame_0565",
+      "corners": 70,
+      "view_error_px": 0.10801521271976187
+    },
+    {
+      "image": "ros_frame_0588",
+      "corners": 70,
+      "view_error_px": 0.1561377280773886
+    },
+    {
+      "image": "ros_frame_0617",
+      "corners": 70,
+      "view_error_px": 0.17378057622478818
+    },
+    {
+      "image": "ros_frame_0637",
+      "corners": 70,
+      "view_error_px": 0.144328553700209
+    },
+    {
+      "image": "ros_frame_0663",
+      "corners": 70,
+      "view_error_px": 0.10085904877257325
+    },
+    {
+      "image": "ros_frame_0689",
+      "corners": 70,
+      "view_error_px": 0.11460193177104336
+    },
+    {
+      "image": "ros_frame_0711",
+      "corners": 70,
+      "view_error_px": 0.08793019639532063
+    },
+    {
+      "image": "ros_frame_0735",
+      "corners": 70,
+      "view_error_px": 0.1013555754169583
+    },
+    {
+      "image": "ros_frame_0759",
+      "corners": 70,
+      "view_error_px": 0.11900552553955801
+    },
+    {
+      "image": "ros_frame_0780",
+      "corners": 70,
+      "view_error_px": 0.12549155296229517
+    },
+    {
+      "image": "ros_frame_0803",
+      "corners": 70,
+      "view_error_px": 0.28696942145909704
+    },
+    {
+      "image": "ros_frame_0846",
+      "corners": 70,
+      "view_error_px": 0.2700000808039983
+    },
+    {
+      "image": "ros_frame_0880",
+      "corners": 70,
+      "view_error_px": 0.1592998691398855
+    },
+    {
+      "image": "ros_frame_0912",
+      "corners": 70,
+      "view_error_px": 0.07545823124975536
+    },
+    {
+      "image": "ros_frame_0939",
+      "corners": 70,
+      "view_error_px": 0.04623369489191772
+    },
+    {
+      "image": "ros_frame_0966",
+      "corners": 70,
+      "view_error_px": 0.04313489758403382
+    },
+    {
+      "image": "ros_frame_0993",
+      "corners": 70,
+      "view_error_px": 0.048163089060611806
+    },
+    {
+      "image": "ros_frame_1018",
+      "corners": 70,
+      "view_error_px": 0.0741853729242148
+    },
+    {
+      "image": "ros_frame_1043",
+      "corners": 70,
+      "view_error_px": 0.045753255186703694
+    },
+    {
+      "image": "ros_frame_1071",
+      "corners": 70,
+      "view_error_px": 0.0771739304520958
+    },
+    {
+      "image": "ros_frame_1100",
+      "corners": 70,
+      "view_error_px": 0.075404368622481
+    },
+    {
+      "image": "ros_frame_1122",
+      "corners": 70,
+      "view_error_px": 0.0823257415118663
+    },
+    {
+      "image": "ros_frame_1148",
+      "corners": 70,
+      "view_error_px": 0.13612876602846932
+    },
+    {
+      "image": "ros_frame_1184",
+      "corners": 70,
+      "view_error_px": 0.21622381572568602
+    },
+    {
+      "image": "ros_frame_1202",
+      "corners": 70,
+      "view_error_px": 0.0459193063385722
+    },
+    {
+      "image": "ros_frame_1226",
+      "corners": 70,
+      "view_error_px": 0.10456614398174752
+    },
+    {
+      "image": "ros_frame_1249",
+      "corners": 70,
+      "view_error_px": 0.047856272668599514
+    },
+    {
+      "image": "ros_frame_1279",
+      "corners": 70,
+      "view_error_px": 0.0930660053084996
+    }
+  ]
+}

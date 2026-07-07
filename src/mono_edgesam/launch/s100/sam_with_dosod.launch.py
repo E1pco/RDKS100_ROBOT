@@ -73,6 +73,9 @@ def generate_launch_description():
     sam_max_rois_launch_arg = DeclareLaunchArgument(
         "sam_max_rois", default_value=TextSubstitution(text="0")
     )
+    sam_mask_count_topic_launch_arg = DeclareLaunchArgument(
+        "sam_mask_count_topic", default_value=TextSubstitution(text="/segmentation/mask_count")
+    )
     model_file_name_launch_arg = DeclareLaunchArgument(
         "dosod_model_file_name",
         default_value=TextSubstitution(
@@ -263,6 +266,8 @@ def generate_launch_description():
                 "sam_cache_len_limit")},
             {"max_rois": LaunchConfiguration(
                 "sam_max_rois")},
+            {"mask_count_topic_name": LaunchConfiguration(
+                "sam_mask_count_topic")},
             {"is_regular_box": 0},
             {"is_shared_mem_sub": 0 if use_external_ros_image else 1},
             {"ros_img_sub_topic_name": LaunchConfiguration(
@@ -341,6 +346,7 @@ def generate_launch_description():
             sam_enable_web_codec_launch_arg,
             sam_cache_len_limit_launch_arg,
             sam_max_rois_launch_arg,
+            sam_mask_count_topic_launch_arg,
             model_file_name_launch_arg,
             vocabulary_file_name_launch_arg,
             score_threshold_launch_arg,
@@ -374,6 +380,7 @@ def generate_launch_description():
             sam_enable_web_codec_launch_arg,
             sam_cache_len_limit_launch_arg,
             sam_max_rois_launch_arg,
+            sam_mask_count_topic_launch_arg,
             model_file_name_launch_arg,
             vocabulary_file_name_launch_arg,
             score_threshold_launch_arg,
@@ -410,6 +417,7 @@ def generate_launch_description():
             sam_enable_web_codec_launch_arg,
             sam_cache_len_limit_launch_arg,
             sam_max_rois_launch_arg,
+            sam_mask_count_topic_launch_arg,
             model_file_name_launch_arg,
             vocabulary_file_name_launch_arg,
             score_threshold_launch_arg,

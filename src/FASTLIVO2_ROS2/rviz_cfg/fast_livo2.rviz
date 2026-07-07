@@ -199,7 +199,7 @@ Visualization Manager:
               Value: true
             Value: true
           Enabled: true
-          Keep: 1
+          Keep: 100
           Name: Odometry
           Position Tolerance: 0.0010000000474974513
           Shape:
@@ -222,8 +222,8 @@ Visualization Manager:
           Value: true
       Enabled: true
       Name: Odometry
-    - Alpha: 0
-      Buffer Length: 2
+    - Alpha: 1
+      Buffer Length: 5000
       Class: rviz_default_plugins/Path
       Color: 25; 255; 255
       Enabled: true
@@ -231,8 +231,8 @@ Visualization Manager:
       Head Length: 0
       Length: 0.30000001192092896
       Line Style: Billboards
-      Line Width: 0.03999999910593033
-      Name: Path
+      Line Width: 0.05999999865889549
+      Name: FAST-LIVO Trajectory
       Offset:
         X: 0
         Y: 0

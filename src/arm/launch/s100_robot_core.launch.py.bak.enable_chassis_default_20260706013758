@@ -87,7 +87,7 @@ def generate_launch_description() -> LaunchDescription:
     device_arg = DeclareLaunchArgument('device', default_value='/dev/video0')
     enable_chassis_arg = DeclareLaunchArgument(
         'enable_chassis',
-        default_value='true',
+        default_value='false',
         description='Start ackermann_serial_bridge when true.',
     )
     chassis_port_arg = DeclareLaunchArgument('chassis_port', default_value='/dev/chassis')
@@ -95,8 +95,7 @@ def generate_launch_description() -> LaunchDescription:
     arm_speed_arg = DeclareLaunchArgument('arm_speed', default_value='1200')
 
     ackermann_share = get_package_share_directory('ackermann_serial_bridge')
-    source_chassis_config = os.path.expanduser('~/fast_ws/src/ackermann_serial_bridge/config/ackermann_serial_bridge.yaml')
-    chassis_config = source_chassis_config if os.path.exists(source_chassis_config) else os.path.join(ackermann_share, 'config', 'ackermann_serial_bridge.yaml')
+    chassis_config = os.path.join(ackermann_share, 'config', 'ackermann_serial_bridge.yaml')
 
     chassis_node = Node(
         package='ackermann_serial_bridge',

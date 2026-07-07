@@ -15,7 +15,8 @@ from launch_ros.actions import Node
 
 def generate_launch_description() -> LaunchDescription:
     pkg_share = get_package_share_directory("ackermann_serial_bridge")
-    default_config = os.path.join(pkg_share, "config", "ackermann_serial_bridge.yaml")
+    source_config = os.path.expanduser("~/fast_ws/src/ackermann_serial_bridge/config/ackermann_serial_bridge.yaml")
+    default_config = source_config if os.path.exists(source_config) else os.path.join(pkg_share, "config", "ackermann_serial_bridge.yaml")
 
     config_arg = DeclareLaunchArgument(
         "config",

@@ -34,6 +34,8 @@ setup(
             'dosod_filter_node = arm.dosod_filter_node:main',
             'feature_manager_node = arm.feature_manager_node:main',
             'rgb_img_republisher_node = arm.rgb_img_republisher_node:main',
+            'mvs_jpeg_republisher_node = arm.mvs_jpeg_republisher_node:main',
+            'livox_raw_cloud_node = arm.livox_raw_cloud_node:main',
         ],
     },
 )

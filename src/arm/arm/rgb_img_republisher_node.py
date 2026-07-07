@@ -16,8 +16,8 @@ class RgbImgRepublisher(Node):
         output_topic = self.get_parameter('output_topic').value
 
         qos = QoSProfile(
-            depth=2,
-            reliability=ReliabilityPolicy.RELIABLE,
+            depth=1,
+            reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.VOLATILE,
         )
         self.pub = self.create_publisher(Image, output_topic, qos)

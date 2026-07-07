@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -31,6 +32,7 @@
 #endif
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "std_msgs/msg/int32.hpp"
 
 #include "include/ai_msg_manage.h"
 #include "include/data_preprocess.h"
@@ -163,6 +165,11 @@ class EdgeSamNode : public DnnNode {
       ai_msg_subscription_ = nullptr;
   void AiMsgProcess(const ai_msgs::msg::PerceptionTargets::ConstSharedPtr msg);
 
+  std::string mask_count_topic_name_ = "/segmentation/mask_count";
+  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr
+      mask_count_subscription_ = nullptr;
+  void MaskCountProcess(const std_msgs::msg::Int32::ConstSharedPtr msg);
+
   // 目前只支持订阅深度图原图
   std::string ros_img_sub_topic_name_ = "/image";
   rclcpp::Subscription<sensor_msgs::msg::Image>::ConstSharedPtr
@@ -223,7 +230,7 @@ class EdgeSamNode : public DnnNode {
   // 在线程中执行推理，避免阻塞订阅IO通道，导致AI msg消息丢失
   int cache_len_limit_ = 8;
   // 每帧最多分割的检测框数量，0表示不限制
-  int max_rois_ = 0;
+  std::atomic<int> max_rois_{0};
   std::mutex mtx_img_;
   std::condition_variable cv_img_;
 

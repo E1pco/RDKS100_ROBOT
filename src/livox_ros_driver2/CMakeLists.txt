@@ -238,6 +238,11 @@ else(ROS_EDITION STREQUAL "ROS2")
 
   # generate custom msg headers
   set(LIVOX_INTERFACES livox_interfaces2)
+  set(LIVOX_INTERFACE_TARGET "")
+  set(LIVOX_INTERFACES_INCLUDE_DIRECTORIES "")
+  if(NOT DEFINED HUMBLE_ROS AND "$ENV{ROS_DISTRO}" STREQUAL "humble")
+    set(HUMBLE_ROS "humble")
+  endif()
   rosidl_generate_interfaces(${LIVOX_INTERFACES}
     "msg/CustomPoint.msg"
     "msg/CustomMsg.msg"
@@ -290,6 +295,9 @@ else(ROS_EDITION STREQUAL "ROS2")
     set(LIVOX_INTERFACE_TARGET "${LIVOX_INTERFACES}__rosidl_typesupport_cpp")
     add_dependencies(${PROJECT_NAME} ${LIVOX_INTERFACES})
     get_target_property(LIVOX_INTERFACES_INCLUDE_DIRECTORIES ${LIVOX_INTERFACE_TARGET} INTERFACE_INCLUDE_DIRECTORIES)
+    if(NOT LIVOX_INTERFACES_INCLUDE_DIRECTORIES)
+      set(LIVOX_INTERFACES_INCLUDE_DIRECTORIES "")
+    endif()
   endif()
 
   # include file direcotry

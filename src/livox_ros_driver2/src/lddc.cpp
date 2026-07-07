@@ -32,6 +32,8 @@
 #include <math.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <cstdlib>
+#include <pwd.h>
 
 #include "include/ros_headers.h"
 
@@ -40,6 +42,44 @@
 
 namespace livox_ros
 {
+  static std::string GetTimestampSharePath()
+  {
+    const char *home = std::getenv("HOME");
+    if (home && home[0] != '\0')
+    {
+      return std::string(home) + "/timeshare";
+    }
+
+    struct passwd *pw = getpwuid(getuid());
+    if (pw && pw->pw_dir && pw->pw_dir[0] != '\0')
+    {
+      return std::string(pw->pw_dir) + "/timeshare";
+    }
+
+    return "/tmp/timeshare";
+  }
+
+  static void WriteSharedTimestamp(time_stamp *pointt, int64_t timestamp)
+  {
+    if (!pointt || timestamp <= 0)
+    {
+      return;
+    }
+
+    int64_t seq = __atomic_load_n(&pointt->high, __ATOMIC_RELAXED);
+    if (seq < 0)
+    {
+      seq = 0;
+    }
+    if ((seq % 2) != 0)
+    {
+      ++seq;
+    }
+
+    __atomic_store_n(&pointt->high, seq + 1, __ATOMIC_RELEASE);
+    __atomic_store_n(&pointt->low, timestamp, __ATOMIC_RELEASE);
+    __atomic_store_n(&pointt->high, seq + 2, __ATOMIC_RELEASE);
+  }
 
 /** Lidar Data Distribute Control--------------------------------------------*/
 #ifdef BUILDING_ROS1
@@ -62,6 +102,7 @@ namespace livox_ros
     global_imu_pub_ = nullptr;
     cur_node_ = nullptr;
     bag_ = nullptr;
+    pointt = nullptr;
   }
 #elif defined BUILDING_ROS2
   Lddc::Lddc(int format, int multi_topic, int data_src, int output_type,
@@ -75,6 +116,7 @@ namespace livox_ros
   {
     publish_period_ns_ = kNsPerSecond / publish_frq_;
     lds_ = nullptr;
+    pointt = nullptr;
 #if 0
   bag_ = nullptr;
 #endif
@@ -114,7 +156,11 @@ namespace livox_ros
       }
     }
 #endif
-    munmap(pointt, sizeof(time_stamp) * 1);
+    if (pointt)
+    {
+      munmap(pointt, sizeof(time_stamp));
+      pointt = nullptr;
+    }
     std::cout << "lddc destory!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
   }
 
@@ -196,9 +242,7 @@ namespace livox_ros
     //******************************************************************** add code
     if (isOpended == false)
     {
-      const char *user_name = getlogin();
-      std::string path_for_time_stamp = "/home/" + std::string(user_name) + "/timeshare";
-
+      std::string path_for_time_stamp = GetTimestampSharePath();
       const char *shared_file_name = path_for_time_stamp.c_str();
       int fd = open(shared_file_name, O_CREAT | O_RDWR | O_TRUNC, 0666);
       if (fd == -1)
@@ -209,12 +253,32 @@ namespace livox_ros
       else
       {
         printf("open code: %d\n", fd);
-        isOpended = true;
+        if (ftruncate(fd, sizeof(time_stamp)) != 0)
+        {
+          printf("ftruncate failed\n");
+          close(fd);
+          isOpended = false;
+        }
+        else
+        {
+          pointt = (time_stamp *)mmap(NULL, sizeof(time_stamp),
+                                      PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+          if (pointt == MAP_FAILED)
+          {
+            printf("mmap failed\n");
+            pointt = nullptr;
+            close(fd);
+            isOpended = false;
+          }
+          else
+          {
+            pointt->high = 0;
+            pointt->low = 0;
+            close(fd);
+            isOpended = true;
+          }
+        }
       }
-      lseek(fd, sizeof(time_stamp) * 1, SEEK_SET);
-      write(fd, "", 1);
-      pointt = (time_stamp *)mmap(NULL, sizeof(time_stamp) * 1,
-                                  PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     }
     //********************************************************************
 
@@ -278,10 +342,10 @@ namespace livox_ros
       uint64_t timestamp = 0;
       InitPointcloud2Msg(pkg, cloud, timestamp);
       PublishPointcloud2Data(index, timestamp, cloud);
-      pointt->low = timestamp;
+      WriteSharedTimestamp(pointt, static_cast<int64_t>(timestamp));
       // printf("****************timestamp=%ld\n", timestamp);
 
-      printf("pointt->low=%ld\n", pointt->low);
+      if (pointt) printf("pointt->low=%ld\n", pointt->low);
     }
   }
 
@@ -306,7 +370,7 @@ namespace livox_ros
       {
         timestamp = pkg.base_time;
       }
-      pointt->low = timestamp;
+      WriteSharedTimestamp(pointt, static_cast<int64_t>(timestamp));
       // ROS_ERROR("Custom Point: %f\n", pointt->low*0.000000001);
              // printf("****************timestamp=%ld\n", timestamp);
       // ROS_ERROR("****************PublishCustomPointcloud\n");

@@ -6,7 +6,7 @@ import launch
 from launch.actions import SetEnvironmentVariable
 
 ################### user configure parameters for ros2 start ###################
-xfer_format   = 1    # 0-Pointcloud2(PointXYZRTL), 1-customized pointcloud format
+xfer_format   = 0    # 0-Pointcloud2(PointXYZRTL), 1-customized pointcloud format
 multi_topic   = 0    # 0-All LiDARs share the same topic, 1-One LiDAR one topic
 data_src      = 0    # 0-lidar, others-Invalid data src
 publish_freq  = 10.0 # freqency of publish, 5.0, 10.0, 20.0, 50.0, etc.
@@ -40,7 +40,6 @@ def generate_launch_description():
         SetEnvironmentVariable("RMW_FASTRTPS_USE_QOS_FROM_XML", "1"),
         SetEnvironmentVariable("ROS_DISABLE_LOANED_MESSAGES", "0"),
     ]
-
 
     livox_driver = Node(
         package='livox_ros_driver2',

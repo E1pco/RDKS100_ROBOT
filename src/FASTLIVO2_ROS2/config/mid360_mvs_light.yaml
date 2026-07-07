@@ -1,3 +1,7 @@
+# Streaming dense MID360 + MVS profile for RDK S100.
+# Goal: Faster-LIO-style local/incremental mapping behavior with bounded memory,
+# while publishing dense current-frame RGB point clouds. Calibration and topics
+# stay identical to mid360_mvs.yaml; global/PCD accumulation remains disabled.
 /**:
   ros__parameters:
     common:
@@ -27,8 +31,8 @@
       exposure_time_init: 0.0
 
     preprocess:
-      point_filter_num: 2
-      filter_size_surf: 0.15
+      point_filter_num: 1
+      filter_size_surf: 0.12
       lidar_type: 1
       scan_line: 4
       blind: 0.5
@@ -54,19 +58,19 @@
       b_gyr_cov: 0.0001
 
     lio:
-      max_iterations: 3
+      max_iterations: 2
       dept_err: 0.02
       beam_err: 0.05
       min_eigen_value: 0.005
       voxel_size: 1.0
       max_layer: 2
-      max_points_num: 50
+      max_points_num: 25
       layer_init_num: [5, 5, 5, 5, 5]
 
     local_map:
       map_sliding_en: true
-      half_map_size: 40
-      sliding_thresh: 8.0
+      half_map_size: 16
+      sliding_thresh: 2.5
 
     uav:
       imu_rate_odom: false
@@ -76,15 +80,15 @@
       dense_map_en: true
       pub_effect_point_en: false
       pub_plane_en: false
-      pub_scan_num: 3
+      pub_scan_num: 1
       blind_rgb_points: 0.0
 
     visualization:
-      publish_every_n_frames: 3
+      publish_every_n_frames: 1
       dense_map_en: true
-      voxel_size: 0.05
-      max_points: 50000
-      publish_rate: 5.0
+      voxel_size: 0.0
+      max_points: 120000
+      publish_rate: 2.0
 
     evo:
       seq_name: "mid360_mvs"

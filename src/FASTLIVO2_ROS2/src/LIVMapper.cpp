@@ -323,13 +323,16 @@ void LIVMapper::initializeFiles()
 void LIVMapper::initializeSubscribersAndPublishers(rclcpp::Node::SharedPtr &node, image_transport::ImageTransport &it_)
 {
   image_transport::ImageTransport it(this->node);
+  auto lidar_qos = rclcpp::SensorDataQoS().keep_last(5);
+  auto imu_qos = rclcpp::SensorDataQoS().keep_last(200);
+  auto image_qos = rclcpp::SensorDataQoS().keep_last(2);
   if (p_pre->lidar_type == AVIA) {
-    sub_pcl = this->node->create_subscription<livox_ros_driver2::msg::CustomMsg>(lid_topic, 200000, std::bind(&LIVMapper::livox_pcl_cbk, this, std::placeholders::_1));
+    sub_pcl = this->node->create_subscription<livox_ros_driver2::msg::CustomMsg>(lid_topic, lidar_qos, std::bind(&LIVMapper::livox_pcl_cbk, this, std::placeholders::_1));
   } else {
-    sub_pcl = this->node->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, 200000, std::bind(&LIVMapper::standard_pcl_cbk, this, std::placeholders::_1));
+    sub_pcl = this->node->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, lidar_qos, std::bind(&LIVMapper::standard_pcl_cbk, this, std::placeholders::_1));
   }
-  sub_imu = this->node->create_subscription<sensor_msgs::msg::Imu>(imu_topic, 200000, std::bind(&LIVMapper::imu_cbk, this, std::placeholders::_1));
-  sub_img = this->node->create_subscription<sensor_msgs::msg::Image>(img_topic, 200000, std::bind(&LIVMapper::img_cbk, this, std::placeholders::_1));
+  sub_imu = this->node->create_subscription<sensor_msgs::msg::Imu>(imu_topic, imu_qos, std::bind(&LIVMapper::imu_cbk, this, std::placeholders::_1));
+  sub_img = this->node->create_subscription<sensor_msgs::msg::Image>(img_topic, image_qos, std::bind(&LIVMapper::img_cbk, this, std::placeholders::_1));
   
   pubLaserCloudFullRes = this->node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_registered", rclcpp::QoS(1));
   pubNormal = this->node->create_publisher<visualization_msgs::msg::MarkerArray>("/visualization_marker", 100);
@@ -1278,10 +1281,13 @@ void LIVMapper::publish_img_rgb(const image_transport::Publisher &pubImage, VIOM
 
 void LIVMapper::publish_frame_world(const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr &pubLaserCloudFullRes, VIOManagerPtr vio_manager)
 {
-  if (pcl_w_wait_pub->empty() && (!pcd_save_en || pcl_w_wait_pcd_pub->empty())) return;
+  if (pcl_w_wait_pub->empty() && (!pcd_save_en || pcl_w_wait_pcd_pub->empty()))
+  {
+    return;
+  }
 
   visualization_frame_count++;
-  const bool publish_this_frame = ((visualization_frame_count - 1) % visualization_publish_every_n_frames) == 0;
+  const bool publish_this_frame = img_en || ((visualization_frame_count - 1) % visualization_publish_every_n_frames) == 0;
   const double now_sec = this->node->get_clock()->now().seconds();
   const bool rate_limited = visualization_publish_rate > 0.0 &&
                             last_visualization_publish_time > 0.0 &&

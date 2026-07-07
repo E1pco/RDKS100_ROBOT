@@ -105,7 +105,7 @@ EdgeSamNode::EdgeSamNode(const std::string& node_name,
                                const NodeOptions& options)
     : DnnNode(node_name, options) {
   this->declare_parameter<int>("cache_len_limit", cache_len_limit_);
-  this->declare_parameter<int>("max_rois", max_rois_);
+  this->declare_parameter<int>("max_rois", max_rois_.load());
   this->declare_parameter<int>("dump_render_img", dump_render_img_);
   this->declare_parameter<std::string>("dump_render_path", dump_render_path_);
   this->declare_parameter<int>("feed_type", feed_type_);
@@ -126,11 +126,15 @@ EdgeSamNode::EdgeSamNode(const std::string& node_name,
                                        ai_msg_pub_topic_name_);
   this->declare_parameter<std::string>("ai_msg_sub_topic_name",
                                        ai_msg_sub_topic_name_);
+  this->declare_parameter<std::string>("mask_count_topic_name",
+                                       mask_count_topic_name_);
   this->declare_parameter<std::string>("ros_img_sub_topic_name",
                                        ros_img_sub_topic_name_);
 
   this->get_parameter<int>("cache_len_limit", cache_len_limit_);
-  this->get_parameter<int>("max_rois", max_rois_);
+  int configured_max_rois = max_rois_.load();
+  this->get_parameter<int>("max_rois", configured_max_rois);
+  max_rois_.store(std::max(0, std::min(configured_max_rois, 20)));
   this->get_parameter<int>("dump_render_img", dump_render_img_);
   this->get_parameter<std::string>("dump_render_path", dump_render_path_);
   this->get_parameter<int>("feed_type", feed_type_);
@@ -149,13 +153,15 @@ EdgeSamNode::EdgeSamNode(const std::string& node_name,
                                    ai_msg_pub_topic_name_);
   this->get_parameter<std::string>("ai_msg_sub_topic_name",
                                    ai_msg_sub_topic_name_);
+  this->get_parameter<std::string>("mask_count_topic_name",
+                                   mask_count_topic_name_);
   this->get_parameter<std::string>("ros_img_sub_topic_name",
                                    ros_img_sub_topic_name_);
 
   std::stringstream ss;
   ss << "Parameter:"
      << "\n cache_len_limit: " << cache_len_limit_
-     << "\n max_rois: " << max_rois_
+     << "\n max_rois: " << max_rois_.load()
      << "\n dump_render_img: " << dump_render_img_
      << "\n dump_render_path: " << dump_render_path_
      << "\n feed_type(0:local, 1:sub): " << feed_type_
@@ -172,6 +178,7 @@ EdgeSamNode::EdgeSamNode(const std::string& node_name,
      << "\n box_y2: " << box_y2_
      << "\n ai_msg_pub_topic_name: " << ai_msg_pub_topic_name_
      << "\n ai_msg_sub_topic_name: " << ai_msg_sub_topic_name_
+     << "\n mask_count_topic_name: " << mask_count_topic_name_
      << "\n ros_img_sub_topic_name: " << ros_img_sub_topic_name_;
   RCLCPP_WARN(rclcpp::get_logger("mono_edgesam"), "%s", ss.str().c_str());
 
@@ -197,6 +204,14 @@ EdgeSamNode::EdgeSamNode(const std::string& node_name,
                 
     msg_publisher_ = this->create_publisher<ai_msgs::msg::PerceptionTargets>(
         ai_msg_pub_topic_name_, 10);
+
+    auto mask_count_qos = rclcpp::QoS(rclcpp::KeepLast(1))
+                              .reliable()
+                              .transient_local();
+    mask_count_subscription_ = this->create_subscription<std_msgs::msg::Int32>(
+        mask_count_topic_name_,
+        mask_count_qos,
+        std::bind(&EdgeSamNode::MaskCountProcess, this, std::placeholders::_1));
 
     predict_task_ = std::make_shared<std::thread>(
         std::bind(&EdgeSamNode::RunPredict, this));
@@ -1081,6 +1096,22 @@ void EdgeSamNode::AiMsgProcess(
   ai_msg_manage_->Feed(msg);
 }
 
+void EdgeSamNode::MaskCountProcess(const std_msgs::msg::Int32::ConstSharedPtr msg) {
+  if (!msg || !rclcpp::ok()) {
+    return;
+  }
+
+  const int requested = msg->data;
+  const int clamped = std::max(0, std::min(requested, 20));
+  const int previous = max_rois_.exchange(clamped);
+  if (previous != clamped) {
+    RCLCPP_WARN(rclcpp::get_logger("mono_edgesam"),
+                "Update SAM mask_count/max_rois: %d -> %d",
+                previous,
+                clamped);
+  }
+}
+
 void EdgeSamNode::RunPredict() {
   while (rclcpp::ok()) {
     std::unique_lock<std::mutex> lg(mtx_img_);
@@ -1140,7 +1171,8 @@ void EdgeSamNode::RunPredict() {
         msg_publisher_->publish(std::move(msg));
         continue;
       }
-      if (max_rois_ > 0 && rois->size() > static_cast<size_t>(max_rois_)) {
+      const int max_rois = max_rois_.load();
+      if (max_rois > 0 && rois->size() > static_cast<size_t>(max_rois)) {
         std::vector<size_t> indices(rois->size());
         std::iota(indices.begin(), indices.end(), 0);
         std::sort(indices.begin(), indices.end(),
@@ -1151,7 +1183,7 @@ void EdgeSamNode::RunPredict() {
         auto filtered_rois = std::make_shared<std::vector<hbDNNRoi>>();
         std::vector<std::string> filtered_class_names;
         std::vector<float> filtered_confidences;
-        for (int i = 0; i < max_rois_; ++i) {
+        for (int i = 0; i < max_rois; ++i) {
           size_t index = indices[i];
           filtered_rois->push_back((*rois)[index]);
           filtered_class_names.push_back(class_names[index]);

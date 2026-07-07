@@ -12,6 +12,7 @@
 #include "MvCameraControl.h"
 
 #include <rclcpp/rclcpp.hpp>
+#include <rmw/qos_profiles.h>
 #include <rcl_interfaces/msg/parameter_event.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/header.hpp>
@@ -22,6 +23,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -31,6 +33,7 @@
 #include <vector>
 
 #include <fcntl.h>
+#include <pwd.h>
 #include <signal.h>
 #include <sys/ipc.h>
 #include <sys/mman.h>
@@ -44,6 +47,38 @@ struct TimeStamp {
   int64_t high;
   int64_t low;
 };
+
+static std::string GetTimestampSharePath() {
+  const char *home = std::getenv("HOME");
+  if (home && home[0] != '\0') {
+    return std::string(home) + "/timeshare";
+  }
+
+  struct passwd *pw = getpwuid(getuid());
+  if (pw && pw->pw_dir && pw->pw_dir[0] != '\0') {
+    return std::string(pw->pw_dir) + "/timeshare";
+  }
+
+  return "/tmp/timeshare";
+}
+
+static bool ReadSharedTimestamp(const TimeStamp *shm, int64_t *stamp_ns) {
+  if (!shm || !stamp_ns) {
+    return false;
+  }
+
+  for (int i = 0; i < 4; ++i) {
+    const int64_t seq_before = __atomic_load_n(&shm->high, __ATOMIC_ACQUIRE);
+    const int64_t value = __atomic_load_n(&shm->low, __ATOMIC_ACQUIRE);
+    const int64_t seq_after = __atomic_load_n(&shm->high, __ATOMIC_ACQUIRE);
+    if (seq_before == seq_after && value > 0 && (seq_before == 0 || (seq_before % 2) == 0)) {
+      *stamp_ns = value;
+      return true;
+    }
+  }
+
+  return false;
+}
 
 // =========================================================================
 // Pixel format enum used in the YAML config
@@ -207,6 +242,23 @@ public:
       return false;
     }
 
+    // Keep SDK-side latency bounded. A single SDK image node means old frames
+    // are discarded when the processing path is slower than the trigger rate.
+    nRet = MV_CC_SetImageNodeNum(handle_, 1);
+    if (nRet != MV_OK) {
+      RCLCPP_WARN(get_logger(), "SetImageNodeNum(1) failed [0x%x]", nRet);
+    }
+
+    int packet_size = MV_CC_GetOptimalPacketSize(handle_);
+    if (packet_size > 0) {
+      nRet = MV_CC_SetIntValue(handle_, "GevSCPSPacketSize", packet_size);
+      if (nRet == MV_OK) {
+        RCLCPP_INFO(get_logger(), "GevSCPSPacketSize = %d", packet_size);
+      } else {
+        RCLCPP_WARN(get_logger(), "Set GevSCPSPacketSize failed [0x%x]", nRet);
+      }
+    }
+
     // Disable auto frame rate
     MV_CC_SetBoolValue(handle_, "AcquisitionFrameRateEnable", false);
 
@@ -241,7 +293,9 @@ public:
 
   /** Create the image_transport publisher and start the grab thread. */
   void startPublishing() {
-    pub_ = image_transport::create_publisher(this, topic_name_);
+    auto qos = rmw_qos_profile_sensor_data;
+    qos.depth = 1;
+    pub_ = image_transport::create_publisher(this, topic_name_, qos);
     worker_ = std::thread(&MvsCameraNode::grabLoop, this);
   }
 
@@ -280,6 +334,9 @@ private:
   // ---- shared-memory trigger timestamp ----
   TimeStamp *shm_ = nullptr;
   int shm_fd_ = -1;
+  int64_t last_trigger_stamp_ns_ = 0;
+  int stale_trigger_stamp_count_ = 0;
+  int shm_open_warn_count_ = 0;
 
   // ---- dynamic parameter callback ----
   rcl_interfaces::msg::SetParametersResult onParamChange(
@@ -378,20 +435,42 @@ private:
   }
 
   /** Open shared memory for trigger timestamp injection. */
-  void openShm() {
-    const char *user = getlogin();
-    if (!user) return;
-    std::string path = "/home/" + std::string(user) + "/timeshare";
+  bool openShm() {
+    if (shm_ && shm_ != MAP_FAILED) {
+      return true;
+    }
+
+    std::string path = GetTimestampSharePath();
     shm_fd_ = open(path.c_str(), O_RDWR);
     if (shm_fd_ < 0) {
-      RCLCPP_WARN(get_logger(), "Cannot open shared memory %s (trigger timestamps disabled)", path.c_str());
-      return;
+      if (shm_open_warn_count_ < 5) {
+        RCLCPP_WARN(get_logger(), "Cannot open shared memory %s (will retry)", path.c_str());
+        ++shm_open_warn_count_;
+      }
+      return false;
     }
+
+    struct stat st {};
+    if (fstat(shm_fd_, &st) != 0 || st.st_size != static_cast<off_t>(sizeof(TimeStamp))) {
+      RCLCPP_WARN(get_logger(),
+                  "Shared memory %s has invalid size %ld, expected %zu (will retry)",
+                  path.c_str(), static_cast<long>(st.st_size), sizeof(TimeStamp));
+      ::close(shm_fd_);
+      shm_fd_ = -1;
+      return false;
+    }
+
     shm_ = static_cast<TimeStamp *>(mmap(nullptr, sizeof(TimeStamp), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, 0));
     if (shm_ == MAP_FAILED) {
-      RCLCPP_WARN(get_logger(), "mmap failed (trigger timestamps disabled)");
+      RCLCPP_WARN(get_logger(), "mmap failed for %s (will retry)", path.c_str());
       shm_ = nullptr;
+      ::close(shm_fd_);
+      shm_fd_ = -1;
+      return false;
     }
+
+    RCLCPP_INFO(get_logger(), "Mapped trigger timestamp shared memory: %s", path.c_str());
+    return true;
   }
 
   void closeShm() {
@@ -412,23 +491,22 @@ private:
     }
 
     const unsigned buf_size = param.nCurValue * 3;
-    auto *raw_data   = static_cast<unsigned char *>(std::malloc(buf_size));
-    auto *bgr_data   = static_cast<unsigned char *>(std::malloc(buf_size));
-    if (!raw_data || !bgr_data) {
+    auto *bgr_data = static_cast<unsigned char *>(std::malloc(buf_size));
+    if (!bgr_data) {
       RCLCPP_ERROR(get_logger(), "Memory allocation failed!");
-      std::free(raw_data); std::free(bgr_data);
       return;
     }
 
-    MV_FRAME_OUT_INFO_EX frame_info{};
+    MV_FRAME_OUT frame_out{};
     MV_CC_PIXEL_CONVERT_PARAM conv_param{};
 
     int fail_count = 0;
     while (running_ && rclcpp::ok()) {
-      nRet = MV_CC_GetOneFrameTimeout(handle_, raw_data, buf_size, &frame_info, 1000);
-      if (nRet != MV_OK) {
+      std::memset(&frame_out, 0, sizeof(frame_out));
+      nRet = MV_CC_GetImageBuffer(handle_, &frame_out, 1000);
+      if (nRet != MV_OK || frame_out.pBufAddr == nullptr) {
         if (fail_count < 5 || fail_count % 100 == 0)
-          RCLCPP_WARN(get_logger(), "GetOneFrame failed [0x%x] (count=%d)", nRet, fail_count);
+          RCLCPP_WARN(get_logger(), "GetImageBuffer failed [0x%x] (count=%d)", nRet, fail_count);
         ++fail_count;
         continue;
       }
@@ -437,11 +515,19 @@ private:
         fail_count = 0;
       }
 
+      const auto &frame_info = frame_out.stFrameInfo;
+
       // Timestamp
       rclcpp::Time stamp;
-      if (trigger_enable_ && shm_ && shm_->low != 0) {
-        double sec = shm_->low / 1e9;
-        stamp = rclcpp::Time(static_cast<int64_t>(sec), static_cast<uint32_t>((sec - static_cast<int64_t>(sec)) * 1e9));
+      int64_t trigger_stamp_ns = 0;
+      if (trigger_enable_ && openShm() && ReadSharedTimestamp(shm_, &trigger_stamp_ns)) {
+        if (trigger_stamp_ns <= last_trigger_stamp_ns_) {
+          ++stale_trigger_stamp_count_;
+        } else {
+          stale_trigger_stamp_count_ = 0;
+          last_trigger_stamp_ns_ = trigger_stamp_ns;
+        }
+        stamp = rclcpp::Time(trigger_stamp_ns);
       } else {
         stamp = this->now();
       }
@@ -449,8 +535,8 @@ private:
       // Convert pixel format to BGR8, which matches OpenCV and hobot_codec.
       conv_param.nWidth        = frame_info.nWidth;
       conv_param.nHeight       = frame_info.nHeight;
-      conv_param.pSrcData      = raw_data;
-      conv_param.nSrcDataLen   = buf_size;
+      conv_param.pSrcData      = frame_out.pBufAddr;
+      conv_param.nSrcDataLen   = frame_info.nFrameLen;
       conv_param.enSrcPixelType = frame_info.enPixelType;
       conv_param.enDstPixelType = PixelType_Gvsp_BGR8_Packed;
       conv_param.pDstBuffer    = bgr_data;
@@ -459,6 +545,7 @@ private:
       nRet = MV_CC_ConvertPixelType(handle_, &conv_param);
       if (nRet != MV_OK) {
         RCLCPP_WARN(get_logger(), "ConvertPixelType failed [0x%x], skipping frame", nRet);
+        MV_CC_FreeImageBuffer(handle_, &frame_out);
         continue;
       }
 
@@ -477,9 +564,9 @@ private:
       msg->header.stamp = stamp;
       msg->header.frame_id = "camera";
       pub_.publish(msg);
+      MV_CC_FreeImageBuffer(handle_, &frame_out);
     }
 
-    std::free(raw_data);
     std::free(bgr_data);
     closeShm();
   }
