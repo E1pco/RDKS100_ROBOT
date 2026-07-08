@@ -1,0 +1,27 @@
+# Robot measured extrinsics.
+# Parent frame is base_link, whose origin is the vehicle geometric center.
+# Distances in this file are meters. Source measurements were in millimeters.
+# Angles are radians unless a *_deg field is present.
+
+base_link_to_livox_frame:
+  source_translation_mm: [189.5, 0.0, 162.0]
+  translation_m: [0.1895, 0.0, 0.1620]
+  rpy_deg: [-22.0, 0.0, 0.0]
+  rpy_rad: [-0.3839724354, 0.0, 0.0]
+  matrix:
+    - [1.0, 0.0, 0.0, 0.1895]
+    - [0.0, 0.927, 0.375, 0.0]
+    - [0.0, -0.375, 0.927, 0.1620]
+    - [0.0, 0.0, 0.0, 1.0]
+
+base_link_to_arm_geometry_center:
+  source_translation_mm: [-66.5, -64.0, 120.0]
+  translation_m: [-0.0665, -0.0640, 0.1200]
+  yaw_deg: -43.7
+  yaw_rad: -0.7627086370
+  matrix:
+    - [0.723, 0.691, 0.0, -0.0665]
+    - [-0.691, 0.723, 0.0, -0.0640]
+    - [0.0, 0.0, 1.0, 0.1200]
+    - [0.0, 0.0, 0.0, 1.0]
+  note: "The source image showed the third rotation row as [0, 0, 0]; it is stored here as [0, 0, 1] to form a valid homogeneous transform."

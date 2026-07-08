@@ -12,3 +12,6 @@ pointcloud_to_laserscan:
     range_max: 30.0
     use_inf: true
     inf_epsilon: 1.0
+    stamp_with_ros_time: true
+    stamp_with_zero_time: false
+    stamp_offset_sec: 0.65

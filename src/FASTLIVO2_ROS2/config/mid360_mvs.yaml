@@ -91,7 +91,9 @@
       pose_output_en: false
 
     pcd_save:
-      pcd_save_en: false
+      pcd_save_en: true
       colmap_output_en: false
-      filter_size_pcd: 0.2
-      interval: 30
+      filter_size_pcd: 0.15
+      # Save chunked PCD + scans_pos.json by default for relocalization/navigation.
+      # Positive interval keeps RAM bounded compared with all_raw_points accumulation.
+      interval: 60

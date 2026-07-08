@@ -1,0 +1,25 @@
+pcd_relocalization:
+  ros__parameters:
+    map_pcd: "/home/sunrise/fast_ws/src/FASTLIVO2_ROS2/Log/PCD/all_downsampled_points.pcd"
+    cloud_topic: "/cloud_registered"
+    map_frame: "map"
+    tracking_frame: "camera_init"
+    publish_tf: true
+    publish_pose_topic: "/relocalization/pose"
+
+    map_voxel_size: 0.20
+    scan_voxel_size: 0.25
+    icp_cell_size: 0.50
+    max_correspondence_distance: 1.20
+    min_correspondences: 80
+    max_scan_points: 6000
+    max_iterations: 8
+    converged_translation: 0.03
+    converged_yaw: 0.01
+    run_period_sec: 1.0
+
+    initial_x: 0.0
+    initial_y: 0.0
+    initial_yaw: 0.0
+    z_min: -2.0
+    z_max: 2.0
